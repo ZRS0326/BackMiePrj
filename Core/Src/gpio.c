@@ -42,10 +42,41 @@
 void MX_GPIO_Init(void)
 {
 
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, S1_Pin|S2_Pin|S3_Pin|N1_Pin
+                          |N2_Pin|N3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, E1_Pin|E2_Pin|E3_Pin|W1_Pin
+                          |W2_Pin|W3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : S1_Pin S2_Pin S3_Pin N1_Pin
+                           N2_Pin N3_Pin */
+  GPIO_InitStruct.Pin = S1_Pin|S2_Pin|S3_Pin|N1_Pin
+                          |N2_Pin|N3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : E1_Pin E2_Pin E3_Pin W1_Pin
+                           W2_Pin W3_Pin */
+  GPIO_InitStruct.Pin = E1_Pin|E2_Pin|E3_Pin|W1_Pin
+                          |W2_Pin|W3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
