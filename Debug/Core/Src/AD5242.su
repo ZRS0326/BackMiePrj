@@ -1,0 +1,2 @@
+../Core/Src/AD5242.c:11:19:AD5242_Write	32	static
+../Core/Src/AD5242.c:23:19:AD5242_Read	40	static

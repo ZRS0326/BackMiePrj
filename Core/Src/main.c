@@ -23,6 +23,7 @@
 #include "sdadc.h"
 #include "usart.h"
 #include "gpio.h"
+#include "AD5242.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */

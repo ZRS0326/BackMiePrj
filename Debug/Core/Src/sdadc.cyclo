@@ -1,0 +1,4 @@
+../Core/Src/sdadc.c:31:6:MX_SDADC1_Init	2
+../Core/Src/sdadc.c:60:6:MX_SDADC3_Init	2
+../Core/Src/sdadc.c:89:6:HAL_SDADC_MspInit	3
+../Core/Src/sdadc.c:155:6:HAL_SDADC_MspDeInit	3
