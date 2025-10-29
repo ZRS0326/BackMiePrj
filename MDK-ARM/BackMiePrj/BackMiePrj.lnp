@@ -3,6 +3,7 @@
 "backmieprj\main.o"
 "backmieprj\gpio.o"
 "backmieprj\adc.o"
+"backmieprj\dma.o"
 "backmieprj\i2c.o"
 "backmieprj\sdadc.o"
 "backmieprj\usart.o"
