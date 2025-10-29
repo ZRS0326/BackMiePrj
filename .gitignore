@@ -1,0 +1,54 @@
+# STM32 CubeIDE 项目忽略规则
+
+# 编译输出文件
+Debug/
+Release/
+build/
+*.o
+*.d
+*.su
+*.map
+*.lst
+*.elf
+*.hex
+*.bin
+*.axf
+
+# 中间文件
+*.depend
+*.mk
+*.cyclo
+*.gcno
+*.gcda
+
+# IDE 特定文件
+.project
+.cproject
+.mxproject
+.settings/
+
+# Keil MDK-ARM 项目文件
+MDK-ARM/*.uvguix.*
+MDK-ARM/*.uvoptx
+MDK-ARM/*.uvprojx
+MDK-ARM/BackMiePrj/
+MDK-ARM/DebugConfig/
+MDK-ARM/RTE/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+
+# 日志文件
+*.log
+
+# 备份文件
+*.bak
+*.backup
+
+# 本地配置文件
+*.local
