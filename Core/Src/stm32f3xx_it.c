@@ -55,13 +55,19 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern DMA_HandleTypeDef hdma_usart1_tx;
+extern DMA_HandleTypeDef hdma_adc1;
+extern ADC_HandleTypeDef hadc1;
+extern DMA_HandleTypeDef hdma_i2c1_rx;
+extern DMA_HandleTypeDef hdma_i2c1_tx;
+extern I2C_HandleTypeDef hi2c1;
+extern DMA_HandleTypeDef hdma_sdadc1;
+extern DMA_HandleTypeDef hdma_sdadc3;
+extern SDADC_HandleTypeDef hsdadc1;
+extern SDADC_HandleTypeDef hsdadc3;
 extern DMA_HandleTypeDef hdma_usart1_rx;
-extern DMA_HandleTypeDef hdma_usart2_rx;
-extern DMA_HandleTypeDef hdma_usart2_tx;
+extern DMA_HandleTypeDef hdma_usart1_tx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
-
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -205,6 +211,20 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
+  * @brief This function handles DMA1 channel1 global interrupt.
+  */
+void DMA1_Channel1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc1);
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 1 */
+}
+
+/**
   * @brief This function handles DMA1 channel4 global interrupt.
   */
 void DMA1_Channel4_IRQHandler(void)
@@ -240,7 +260,7 @@ void DMA1_Channel6_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel6_IRQn 0 */
 
   /* USER CODE END DMA1_Channel6_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart2_rx);
+  HAL_DMA_IRQHandler(&hdma_i2c1_tx);
   /* USER CODE BEGIN DMA1_Channel6_IRQn 1 */
 
   /* USER CODE END DMA1_Channel6_IRQn 1 */
@@ -254,10 +274,52 @@ void DMA1_Channel7_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel7_IRQn 0 */
 
   /* USER CODE END DMA1_Channel7_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart2_tx);
+  HAL_DMA_IRQHandler(&hdma_i2c1_rx);
   /* USER CODE BEGIN DMA1_Channel7_IRQn 1 */
 
   /* USER CODE END DMA1_Channel7_IRQn 1 */
+}
+
+/**
+  * @brief This function handles ADC1 interrupt.
+  */
+void ADC1_IRQHandler(void)
+{
+  /* USER CODE BEGIN ADC1_IRQn 0 */
+
+  /* USER CODE END ADC1_IRQn 0 */
+  HAL_ADC_IRQHandler(&hadc1);
+  /* USER CODE BEGIN ADC1_IRQn 1 */
+
+  /* USER CODE END ADC1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles I2C1 event global interrupt / I2C1 wake-up interrupt through EXTI line 23.
+  */
+void I2C1_EV_IRQHandler(void)
+{
+  /* USER CODE BEGIN I2C1_EV_IRQn 0 */
+
+  /* USER CODE END I2C1_EV_IRQn 0 */
+  HAL_I2C_EV_IRQHandler(&hi2c1);
+  /* USER CODE BEGIN I2C1_EV_IRQn 1 */
+
+  /* USER CODE END I2C1_EV_IRQn 1 */
+}
+
+/**
+  * @brief This function handles I2C1 error interrupt.
+  */
+void I2C1_ER_IRQHandler(void)
+{
+  /* USER CODE BEGIN I2C1_ER_IRQn 0 */
+
+  /* USER CODE END I2C1_ER_IRQn 0 */
+  HAL_I2C_ER_IRQHandler(&hi2c1);
+  /* USER CODE BEGIN I2C1_ER_IRQn 1 */
+
+  /* USER CODE END I2C1_ER_IRQn 1 */
 }
 
 /**
@@ -288,14 +350,71 @@ void USART2_IRQHandler(void)
   /* USER CODE END USART2_IRQn 1 */
 }
 
+/**
+  * @brief This function handles DMA2 channel3 global interrupt.
+  */
+void DMA2_Channel3_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Channel3_IRQn 0 */
+
+  /* USER CODE END DMA2_Channel3_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_sdadc1);
+  /* USER CODE BEGIN DMA2_Channel3_IRQn 1 */
+
+  /* USER CODE END DMA2_Channel3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 channel5 global interrupt.
+  */
+void DMA2_Channel5_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Channel5_IRQn 0 */
+
+  /* USER CODE END DMA2_Channel5_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_sdadc3);
+  /* USER CODE BEGIN DMA2_Channel5_IRQn 1 */
+
+  /* USER CODE END DMA2_Channel5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles SDADC1 global interrupt.
+  */
+void SDADC1_IRQHandler(void)
+{
+  /* USER CODE BEGIN SDADC1_IRQn 0 */
+
+  /* USER CODE END SDADC1_IRQn 0 */
+  HAL_SDADC_IRQHandler(&hsdadc1);
+  /* USER CODE BEGIN SDADC1_IRQn 1 */
+
+  /* USER CODE END SDADC1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles SDADC3 global interrupt.
+  */
+void SDADC3_IRQHandler(void)
+{
+  /* USER CODE BEGIN SDADC3_IRQn 0 */
+
+  /* USER CODE END SDADC3_IRQn 0 */
+  HAL_SDADC_IRQHandler(&hsdadc3);
+  /* USER CODE BEGIN SDADC3_IRQn 1 */
+
+  /* USER CODE END SDADC3_IRQn 1 */
+}
+
 /* USER CODE BEGIN 1 */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-	uint32_t temp;
+	uint32_t temp = 0;
 	if (huart->Instance == USART1){
-			temp  = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);//获取DMA当前还有多少未填充
-	}else if(huart->Instance == USART2){
-			temp  = __HAL_DMA_GET_COUNTER(&hdma_usart2_rx);//获取DMA当前还有多少未填充
+			temp  = BUFFERSIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);//获取DMA当前还有多少未填充
 	}
-	Uart_Dataframe(huart,BUFFERSIZE - temp);
+	Uart_Dataframe(huart,temp,Size);
+	if(huart->Instance == USART2){
+			HAL_UARTEx_ReceiveToIdle_IT(&huart2,recv_frame2,FRAMESIZE);
+	}
 }
 /* USER CODE END 1 */
