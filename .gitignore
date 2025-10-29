@@ -31,7 +31,7 @@ build/
 # MDK-ARM/*.uvguix.*
 # MDK-ARM/*.uvoptx
 # MDK-ARM/*.uvprojx
-MDK-ARM/BackMiePrj/
+MDK-ARM/BackMiePrj/**
 # MDK-ARM/DebugConfig/
 # MDK-ARM/RTE/
 
