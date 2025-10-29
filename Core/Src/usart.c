@@ -20,8 +20,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "usart.h"
 
-/* USER CODE BEGIN 0 */
-
+/* USER CODE BEGIN 0 */    
+uint8_t ReceiveBuff1[BUFFERSIZE] = {0}; //接收缓冲区
+uint8_t ReceiveBuff2[BUFFERSIZE] = {0}; //接收缓冲区
+uint8_t base_addr1 = 0;						//基地址1
+uint8_t base_addr2 = 0;						//基地址2
+uint8_t recv_frame1[BUFFERSIZE/4] = {0};						//接收到字符长度
+uint8_t recv_frame2[BUFFERSIZE/4] = {0};						//接收到字符长度
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -278,5 +283,26 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-
+void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target){
+    if(huart->Instance == USART1) {
+      if(base_addr1 <= target){
+        memcpy(recv_frame1, &ReceiveBuff1[base_addr1], target - base_addr1);
+        base_addr1 = target;
+      }else{
+        memcpy(recv_frame1, &ReceiveBuff1[base_addr1], BUFFERSIZE - base_addr1);
+        memcpy(&recv_frame1[BUFFERSIZE - base_addr1], ReceiveBuff1, target);
+        base_addr1 = target;
+      }
+			HAL_UART_Transmit_DMA(&huart1,recv_frame1,20);
+    } else if(huart->Instance == USART2) {
+      if(base_addr2 <= target){
+        memcpy(recv_frame2, &ReceiveBuff2[base_addr2], target - base_addr2);
+        base_addr2 = target;
+      }else{
+        memcpy(recv_frame2, &ReceiveBuff2[base_addr2], BUFFERSIZE - base_addr2);
+        memcpy(&recv_frame2[BUFFERSIZE - base_addr2], ReceiveBuff2, target);
+        base_addr2 = target;
+      }
+    }
+}
 /* USER CODE END 1 */
