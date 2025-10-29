@@ -99,13 +99,15 @@ int main(void)
   MX_SDADC1_Init();
   MX_SDADC3_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,ReceiveBuff1,BUFFERSIZE);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2,ReceiveBuff2,BUFFERSIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_Delay(10);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

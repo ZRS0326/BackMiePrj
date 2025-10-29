@@ -61,6 +61,7 @@ extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -288,5 +289,13 @@ void USART2_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+	uint32_t temp;
+	if (huart->Instance == USART1){
+			temp  = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);//获取DMA当前还有多少未填充
+	}else if(huart->Instance == USART2){
+			temp  = __HAL_DMA_GET_COUNTER(&hdma_usart2_rx);//获取DMA当前还有多少未填充
+	}
+	Uart_Dataframe(huart,BUFFERSIZE - temp);
+}
 /* USER CODE END 1 */

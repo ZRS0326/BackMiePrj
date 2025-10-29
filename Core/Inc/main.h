@@ -31,7 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -41,7 +42,13 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+#define BUFFERSIZE 200           	//可以接收的最大字符个数
+extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区
+extern uint8_t ReceiveBuff2[BUFFERSIZE]; 						//接收缓冲区
+extern uint8_t base_addr1;													//基地址1
+extern uint8_t base_addr2;													//基地址2
+extern uint8_t recv_frame1[BUFFERSIZE/4];						//串口帧
+extern uint8_t recv_frame2[BUFFERSIZE/4];						//串口帧
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -53,7 +60,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
