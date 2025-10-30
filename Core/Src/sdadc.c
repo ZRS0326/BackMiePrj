@@ -21,7 +21,9 @@
 #include "sdadc.h"
 
 /* USER CODE BEGIN 0 */
-
+uint32_t SDADCBUFF1[4][5]={0};
+uint32_t SDADCBUFF2[4][3]={0};
+uint16_t data_frame[8]={0};
 /* USER CODE END 0 */
 
 SDADC_HandleTypeDef hsdadc1;
@@ -51,18 +53,71 @@ void MX_SDADC1_Init(void)
   hsdadc1.Init.FastConversionMode = SDADC_FAST_CONV_DISABLE;
   hsdadc1.Init.SlowClockMode = SDADC_SLOW_CLOCK_DISABLE;
   hsdadc1.Init.ReferenceVoltage = SDADC_VREF_EXT;
+  hsdadc1.InjectedTrigger = SDADC_SOFTWARE_TRIGGER;
   if (HAL_SDADC_Init(&hsdadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Mode
+  */
+  if (HAL_SDADC_SelectInjectedDelay(&hsdadc1, SDADC_INJECTED_DELAY_NONE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_SDADC_SelectInjectedTrigger(&hsdadc1, SDADC_SOFTWARE_TRIGGER) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_SDADC_InjectedConfigChannel(&hsdadc1, SDADC_CHANNEL_4|SDADC_CHANNEL_6
+                              |SDADC_CHANNEL_7|SDADC_CHANNEL_8
+                              |SDADC_CHANNEL_5, SDADC_CONTINUOUS_CONV_ON) != HAL_OK)
   {
     Error_Handler();
   }
 
   /** Set parameters for SDADC configuration 0 Register
   */
-  ConfParamStruct.InputMode = SDADC_INPUT_MODE_DIFF;
+  ConfParamStruct.InputMode = SDADC_INPUT_MODE_SE_ZERO_REFERENCE;
   ConfParamStruct.Gain = SDADC_GAIN_1;
   ConfParamStruct.CommonMode = SDADC_COMMON_MODE_VSSA;
   ConfParamStruct.Offset = 0;
   if (HAL_SDADC_PrepareChannelConfig(&hsdadc1, SDADC_CONF_INDEX_0, &ConfParamStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc1, SDADC_CHANNEL_4, SDADC_CONF_INDEX_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc1, SDADC_CHANNEL_6, SDADC_CONF_INDEX_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc1, SDADC_CHANNEL_7, SDADC_CONF_INDEX_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc1, SDADC_CHANNEL_8, SDADC_CONF_INDEX_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc1, SDADC_CHANNEL_5, SDADC_CONF_INDEX_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -79,6 +134,8 @@ void MX_SDADC3_Init(void)
 
   /* USER CODE END SDADC3_Init 0 */
 
+  SDADC_ConfParamTypeDef ConfParamStruct = {0};
+
   /* USER CODE BEGIN SDADC3_Init 1 */
 
   /* USER CODE END SDADC3_Init 1 */
@@ -91,7 +148,56 @@ void MX_SDADC3_Init(void)
   hsdadc3.Init.FastConversionMode = SDADC_FAST_CONV_DISABLE;
   hsdadc3.Init.SlowClockMode = SDADC_SLOW_CLOCK_DISABLE;
   hsdadc3.Init.ReferenceVoltage = SDADC_VREF_EXT;
+  hsdadc3.InjectedTrigger = SDADC_SOFTWARE_TRIGGER;
   if (HAL_SDADC_Init(&hsdadc3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Mode
+  */
+  if (HAL_SDADC_SelectInjectedDelay(&hsdadc3, SDADC_INJECTED_DELAY_NONE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_SDADC_SelectInjectedTrigger(&hsdadc3, SDADC_SOFTWARE_TRIGGER) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_SDADC_InjectedConfigChannel(&hsdadc3, SDADC_CHANNEL_6|SDADC_CHANNEL_8
+                              |SDADC_CHANNEL_7, SDADC_CONTINUOUS_CONV_ON) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Set parameters for SDADC configuration 0 Register
+  */
+  ConfParamStruct.InputMode = SDADC_INPUT_MODE_SE_ZERO_REFERENCE;
+  ConfParamStruct.Gain = SDADC_GAIN_1;
+  ConfParamStruct.CommonMode = SDADC_COMMON_MODE_VSSA;
+  ConfParamStruct.Offset = 0;
+  if (HAL_SDADC_PrepareChannelConfig(&hsdadc3, SDADC_CONF_INDEX_0, &ConfParamStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc3, SDADC_CHANNEL_6, SDADC_CONF_INDEX_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc3, SDADC_CHANNEL_8, SDADC_CONF_INDEX_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the Injected Channel
+  */
+  if (HAL_SDADC_AssociateChannelConfig(&hsdadc3, SDADC_CHANNEL_7, SDADC_CONF_INDEX_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -139,9 +245,9 @@ void HAL_SDADC_MspInit(SDADC_HandleTypeDef* sdadcHandle)
     hdma_sdadc1.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_sdadc1.Init.MemInc = DMA_MINC_ENABLE;
     hdma_sdadc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma_sdadc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_sdadc1.Init.Mode = DMA_NORMAL;
-    hdma_sdadc1.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_sdadc1.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
+    hdma_sdadc1.Init.Mode = DMA_CIRCULAR;
+    hdma_sdadc1.Init.Priority = DMA_PRIORITY_HIGH;
     if (HAL_DMA_Init(&hdma_sdadc1) != HAL_OK)
     {
       Error_Handler();
@@ -149,9 +255,6 @@ void HAL_SDADC_MspInit(SDADC_HandleTypeDef* sdadcHandle)
 
     __HAL_LINKDMA(sdadcHandle,hdma,hdma_sdadc1);
 
-    /* SDADC1 interrupt Init */
-    HAL_NVIC_SetPriority(SDADC1_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(SDADC1_IRQn);
   /* USER CODE BEGIN SDADC1_MspInit 1 */
 
   /* USER CODE END SDADC1_MspInit 1 */
@@ -188,9 +291,9 @@ void HAL_SDADC_MspInit(SDADC_HandleTypeDef* sdadcHandle)
     hdma_sdadc3.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_sdadc3.Init.MemInc = DMA_MINC_ENABLE;
     hdma_sdadc3.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma_sdadc3.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_sdadc3.Init.Mode = DMA_NORMAL;
-    hdma_sdadc3.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_sdadc3.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
+    hdma_sdadc3.Init.Mode = DMA_CIRCULAR;
+    hdma_sdadc3.Init.Priority = DMA_PRIORITY_HIGH;
     if (HAL_DMA_Init(&hdma_sdadc3) != HAL_OK)
     {
       Error_Handler();
@@ -198,9 +301,6 @@ void HAL_SDADC_MspInit(SDADC_HandleTypeDef* sdadcHandle)
 
     __HAL_LINKDMA(sdadcHandle,hdma,hdma_sdadc3);
 
-    /* SDADC3 interrupt Init */
-    HAL_NVIC_SetPriority(SDADC3_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(SDADC3_IRQn);
   /* USER CODE BEGIN SDADC3_MspInit 1 */
 
   /* USER CODE END SDADC3_MspInit 1 */
@@ -231,9 +331,6 @@ void HAL_SDADC_MspDeInit(SDADC_HandleTypeDef* sdadcHandle)
 
     /* SDADC1 DMA DeInit */
     HAL_DMA_DeInit(sdadcHandle->hdma);
-
-    /* SDADC1 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(SDADC1_IRQn);
   /* USER CODE BEGIN SDADC1_MspDeInit 1 */
 
   /* USER CODE END SDADC1_MspDeInit 1 */
@@ -257,9 +354,6 @@ void HAL_SDADC_MspDeInit(SDADC_HandleTypeDef* sdadcHandle)
 
     /* SDADC3 DMA DeInit */
     HAL_DMA_DeInit(sdadcHandle->hdma);
-
-    /* SDADC3 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(SDADC3_IRQn);
   /* USER CODE BEGIN SDADC3_MspDeInit 1 */
 
   /* USER CODE END SDADC3_MspDeInit 1 */
@@ -267,5 +361,14 @@ void HAL_SDADC_MspDeInit(SDADC_HandleTypeDef* sdadcHandle)
 }
 
 /* USER CODE BEGIN 1 */
-
+void get_sdadc_dataframe(void)
+{
+  uint8_t i;
+  for (i = 0; i < 5; ++i) {
+    data_frame[i] = (uint16_t)((SDADCBUFF1[0][i] + SDADCBUFF1[1][i] + SDADCBUFF1[2][i] + SDADCBUFF1[3][i]) >> 2);
+  }
+	  for (i = 0; i < 3; ++i) {
+    data_frame[i+5] = (uint16_t)((SDADCBUFF2[0][i] + SDADCBUFF2[1][i] + SDADCBUFF2[2][i] + SDADCBUFF2[3][i]) >> 2);
+  }
+}
 /* USER CODE END 1 */

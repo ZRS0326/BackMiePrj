@@ -101,6 +101,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,ReceiveBuff1,BUFFERSIZE);
   HAL_UARTEx_ReceiveToIdle_IT(&huart2,recv_frame2,FRAMESIZE);
+	
+	HAL_SDADC_CalibrationStart(&hsdadc1, SDADC_CALIBRATION_SEQ_1);
+ 	HAL_SDADC_PollForCalibEvent(&hsdadc1, HAL_MAX_DELAY);
+ 	HAL_SDADC_CalibrationStart(&hsdadc3, SDADC_CALIBRATION_SEQ_1);
+ 	HAL_SDADC_PollForCalibEvent(&hsdadc3, HAL_MAX_DELAY);
+	
+	HAL_SDADC_InjectedStart_DMA(&hsdadc1,SDADCBUFF1[0], 20);
+	HAL_SDADC_InjectedStart_DMA(&hsdadc3,SDADCBUFF2[0], 12);	
   /* USER CODE END 2 */
 
   /* Infinite loop */
