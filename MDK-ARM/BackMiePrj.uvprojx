@@ -643,6 +643,16 @@
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f3xx_hal_msp.c</FilePath>
             </File>
+            <File>
+              <FileName>fashion_driver.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\fashion_driver.c</FilePath>
+            </File>
+            <File>
+              <FileName>fashion_driver_example.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\fashion_driver_example.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
