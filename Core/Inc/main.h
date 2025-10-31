@@ -52,6 +52,7 @@ extern uint8_t recv_frame2[FRAMESIZE];						//串口帧
 extern uint32_t SDADCBUFF1[4][5];
 extern uint32_t SDADCBUFF2[4][3];
 extern uint16_t data_frame[8];
+extern uint16_t adj_frame[4];
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

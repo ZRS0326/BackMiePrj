@@ -103,12 +103,14 @@ int main(void)
   HAL_UARTEx_ReceiveToIdle_IT(&huart2,recv_frame2,FRAMESIZE);
 	
 	HAL_SDADC_CalibrationStart(&hsdadc1, SDADC_CALIBRATION_SEQ_1);
- 	HAL_SDADC_PollForCalibEvent(&hsdadc1, HAL_MAX_DELAY);
- 	HAL_SDADC_CalibrationStart(&hsdadc3, SDADC_CALIBRATION_SEQ_1);
- 	HAL_SDADC_PollForCalibEvent(&hsdadc3, HAL_MAX_DELAY);
+	HAL_SDADC_PollForCalibEvent(&hsdadc1, HAL_MAX_DELAY);
+	HAL_SDADC_CalibrationStart(&hsdadc3, SDADC_CALIBRATION_SEQ_1);
+	HAL_SDADC_PollForCalibEvent(&hsdadc3, HAL_MAX_DELAY);
 	
 	HAL_SDADC_InjectedStart_DMA(&hsdadc1,SDADCBUFF1[0], 20);
 	HAL_SDADC_InjectedStart_DMA(&hsdadc3,SDADCBUFF2[0], 12);	
+	
+	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adj_frame,4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -169,7 +171,7 @@ void SystemClock_Config(void)
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_SYSCLK;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.SdadcClockSelection = RCC_SDADCSYSCLK_DIV12;
-  PeriphClkInit.Adc1ClockSelection = RCC_ADC1PCLK2_DIV2;
+  PeriphClkInit.Adc1ClockSelection = RCC_ADC1PCLK2_DIV8;
 
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {

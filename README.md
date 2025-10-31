@@ -2,272 +2,254 @@
 
 ## 项目概述
 
-本项目基于STM32F373RCT6微控制器，是一个综合性的嵌入式系统，集成了多种外设功能。项目采用STM32CubeMX生成代码框架，支持多通道数据采集、串口通信、I2C通信等功能。
+本项目基于STM32F373RCT6微控制器，是一个综合性嵌入式控制系统，集成了多路信号采集、串口通信、舵机控制等功能。项目采用STM32CubeMX生成基础框架，结合HAL库实现各外设功能，适用于需要高精度数据采集和多设备控制的应用场景。
 
-## 系统特性
+## 主要功能模块
 
-### 主要功能模块
-- **串口通信**: USART1和USART2双串口通信
-- **模拟信号采集**: ADC1多通道模拟信号采集
-- **Sigma-Delta ADC**: SDADC1和SDADC3高精度数据采集
-- **I2C通信**: I2C1总线通信接口
-- **GPIO控制**: 多路GPIO输入输出控制
+### 1. 高精度数据采集
 
-### 系统时钟配置
-- **主时钟**: 72MHz (HSE 8MHz × PLL 9倍频)
-- **外设时钟**: 独立配置各外设时钟源
+#### SDADC高精度模数转换
+- **功能说明**：使用SDADC1和SDADC3进行高精度信号采集，适用于需要高分辨率测量的场景
+- **主要特点**：
+  - 外部参考电压配置
+  - 支持自动校准功能
+  - 使用DMA进行高效数据传输
+- **使用方法**：
+  - 系统初始化时自动启动SDADC校准和数据采集
+  - 采集数据自动存入`SDADCBUFF1`和`SDADCBUFF2`缓冲区
+  - 调用`get_sdadc_dataframe()`获取处理后的数据帧
 
-## 硬件配置
+#### ADC多通道模拟量采集
+- **功能说明**：通过ADC1采集4路模拟信号（方向调整信号），用于控制系统的方向调整
+- **采集通道**：
+  - PA4(SADJ) - 南方调整信号 (ADC1_IN4)
+  - PA5(EADJ) - 东方调整信号 (ADC1_IN5)
+  - PA6(WADJ) - 西方调整信号 (ADC1_IN6)
+  - PA7(NADJ) - 北方调整信号 (ADC1_IN7)
+- **技术参数**：
+  - 分辨率：12位
+  - 采样时间：239.5个ADC时钟周期
+  - 转换模式：连续扫描模式
+  - 触发方式：软件触发
+- **数据传输**：使用DMA1_Channel1进行高效数据传输
+  - 传输模式：循环模式（自动覆盖旧数据）
+  - 数据对齐：半字（16位）
+  - 内存地址递增：启用
+- **数据缓冲区**：
+  - `adj_frame[4]` - 存储4个通道的ADC转换结果
+- **使用方法**：
+  - 系统初始化时自动配置ADC并启动DMA传输
+  - 无需手动触发转换，数据自动通过DMA存入`adj_frame`数组
+  - 可直接读取`adj_frame`数组获取最新的ADC采样值
 
-### 引脚分配
+### 2. 串口通信
 
-#### GPIO控制引脚
-- **S1, S2, S3**: GPIOC引脚1-3 - 南方控制信号
-- **E1, E2, E3**: GPIOA引脚0-2 - 东方控制信号  
-- **W1, W2, W3**: GPIOA引脚9-11 - 西方控制信号
-- **N1, N2, N3**: GPIOC引脚7-9 - 北方控制信号
+#### USART1 (DMA模式)
+- **功能说明**：主要用于舵机控制指令发送和高速数据传输
+- **引脚定义**：PB6(TX)、PB7(RX)
+- **通信参数**：115200bps，8N1
+- **使用方法**：
+  - 系统自动初始化并启动DMA接收
+  - 使用`HAL_UART_Transmit_DMA(&huart1, data, length)`发送数据
+  - 接收到的数据可通过`Uart_Dataframe()`函数处理
 
-#### 调整信号引脚
-- **SADJ, EADJ, WADJ, NADJ**: GPIOA引脚4-7 - 方向调整信号
-- **SADA, SADB, EADA, EADB, NADA, NADB, WADA, WADB**: 多路ADC相关信号
+#### USART2 (中断模式)
+- **功能说明**：用于辅助通信和调试
+- **引脚定义**：PB3(TX)、PB4(RX)
+- **通信参数**：115200bps，8N1
+- **使用方法**：
+  - 系统自动初始化并启动中断接收
+  - 使用`HAL_UART_Transmit_IT(&huart2, data, length)`发送数据
 
-### 串口通信配置
-- **USART1**: PB6(TX), PB7(RX) - 使用DMA传输
-- **USART2**: PB3(TX), PB4(RX) - 使用中断传输
-- **波特率**: 115200
-- **数据位**: 8位
-- **停止位**: 1位
-- **校验位**: 无
+### 3. 舵机控制系统
 
-### 模拟信号采集
-- **ADC1**: 多通道模拟信号采集
-- **SDADC1/SDADC3**: Sigma-Delta ADC高精度采集
-- **I2C1**: I2C总线通信接口
+#### Fashion Driver舵机驱动
+- **功能说明**：提供舵机控制指令封装，支持舵机状态检测和角度控制
+- **主要函数**：
+  - `fashion_send_ping(servo_id)` - 检测舵机是否在线
+  - `fashion_send_single_angle(servo_id, angle, time_ms)` - 控制舵机转动到指定角度
+- **使用示例**：
+  ```c
+  // 检测舵机1是否在线
+  fashion_send_ping(1);
+  HAL_Delay(1000);
+  
+  // 控制舵机1在500ms内转动到90度
+  fashion_send_single_angle(1, 900, 500); // 角度单位为0.1度
+  ```
 
-## 外设初始化
+### 4. GPIO控制
 
-### 系统初始化流程
-```c
-int main(void)
-{
-    HAL_Init();                    // HAL库初始化
-    SystemClock_Config();         // 系统时钟配置
-    
-    // 外设初始化
-    MX_GPIO_Init();               // GPIO初始化
-    MX_DMA_Init();                // DMA初始化
-    MX_USART1_UART_Init();        // USART1初始化
-    MX_USART2_UART_Init();        // USART2初始化
-    MX_I2C1_Init();               // I2C1初始化
-    MX_ADC1_Init();               // ADC1初始化
-    MX_SDADC1_Init();             // SDADC1初始化
-    MX_SDADC3_Init();             // SDADC3初始化
-    
-    // 启动数据接收
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, ReceiveBuff1, BUFFERSIZE);
-    HAL_UARTEx_ReceiveToIdle_IT(&huart2, recv_frame2, FRAMESIZE);
-}
-```
+#### 方向控制信号
+- **功能说明**：控制四个方向（东南西北）的多路信号
+- **引脚分配**：
+  - 南方控制：S1-S3 (GPIOC引脚1-3)
+  - 东方控制：E1-E3 (GPIOA引脚0-2)
+  - 西方控制：W1-W3 (GPIOA引脚9-11)
+  - 北方控制：N1-N3 (GPIOC引脚7-9)
+- **使用方法**：通过HAL库GPIO函数直接控制，如`HAL_GPIO_WritePin()`
 
-## DMA配置
+### 5. I2C通信接口
+- **功能说明**：提供I2C总线通信能力，可连接各类I2C设备
+- **时钟源**：使用HSI时钟源
 
-### USART1 DMA配置
-项目为USART1配置了完整的DMA传输功能，实现高效的数据传输：
+## 系统初始化与使用流程
 
-#### 接收DMA配置 (DMA1 Channel5)
-- **模式**: 循环模式 (DMA_CIRCULAR)
-- **方向**: 外设到内存 (DMA_PERIPH_TO_MEMORY)
-- **数据对齐**: 字节对齐
-- **优先级**: 低优先级
-- **内存地址递增**: 启用
-- **外设地址递增**: 禁用
+### 基本初始化流程
 
-#### 发送DMA配置 (DMA1 Channel4)  
-- **模式**: 普通模式 (DMA_NORMAL)
-- **方向**: 内存到外设 (DMA_MEMORY_TO_PERIPH)
-- **数据对齐**: 字节对齐
-- **优先级**: 低优先级
-- **内存地址递增**: 启用
-- **外设地址递增**: 禁用
+1. **系统启动过程**：
+   - HAL库初始化
+   - 系统时钟配置（72MHz）
+   - 各外设初始化（GPIO、DMA、USART、ADC、SDADC等）
+   
+2. **关键初始化步骤**：
+   ```c
+   // 初始化串口接收
+   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, ReceiveBuff1, BUFFERSIZE);
+   HAL_UARTEx_ReceiveToIdle_IT(&huart2, recv_frame2, FRAMESIZE);
+   
+   // SDADC校准
+   HAL_SDADC_CalibrationStart(&hsdadc1, SDADC_CALIBRATION_SEQ_1);
+   HAL_SDADC_PollForCalibEvent(&hsdadc1, HAL_MAX_DELAY);
+   HAL_SDADC_CalibrationStart(&hsdadc3, SDADC_CALIBRATION_SEQ_1);
+   HAL_SDADC_PollForCalibEvent(&hsdadc3, HAL_MAX_DELAY);
+   
+   // 启动SDADC DMA采集
+   HAL_SDADC_InjectedStart_DMA(&hsdadc1, SDADCBUFF1[0], 20);
+   HAL_SDADC_InjectedStart_DMA(&hsdadc3, SDADCBUFF2[0], 12);
+   ```
 
-### DMA句柄定义
-```c
-DMA_HandleTypeDef hdma_usart1_rx;  // USART1接收DMA
-DMA_HandleTypeDef hdma_usart1_tx;  // USART1发送DMA
-```
+### 数据处理与使用
 
-## 核心功能
+#### 串口数据帧处理
+- **功能说明**：处理接收到的串口数据，支持环形缓冲区管理
+- **使用方法**：
+  ```c
+  // 处理USART1接收到的数据
+  Uart_Dataframe(&huart1, current_position, data_length);
+  // 处理后的数据存储在recv_frame1中
+  
+  // 处理USART2接收到的数据
+  Uart_Dataframe(&huart2, 0, data_length);
+  // 处理后的数据存储在recv_frame2中
+  ```
 
-### 1. 缓冲区定义
+#### SDADC数据获取
+- **功能说明**：获取并处理SDADC采集的数据
+- **使用方法**：
+  ```c
+  // 获取一帧SDADC数据
+  get_sdadc_dataframe();
+  // 处理后的数据存储在data_frame数组中
+  ```
 
-项目定义了多个缓冲区用于数据存储和处理：
+#### ADC方向调整信号获取
+- **功能说明**：获取4路方向调整信号的ADC采样值
+- **使用方法**：
+  ```c
+  // 直接读取ADC采样值
+  uint16_t south_value = adj_frame[0];  // 南方调整信号
+  uint16_t east_value = adj_frame[1];   // 东方调整信号
+  uint16_t west_value = adj_frame[2];   // 西方调整信号
+  uint16_t north_value = adj_frame[3];  // 北方调整信号
+  
+  // 转换为电压值 (假设参考电压为3.3V)
+  float south_voltage = (float)south_value * 3.3f / 4095.0f;
+  
+  // 根据ADC值控制方向信号
+  if (south_value > threshold) {
+    // 执行南方方向控制逻辑
+  }
+  ```
 
-```c
-// 缓冲区大小定义
-#define BUFFERSIZE 200           // 可以接收的最大字符个数   
-#define FRAMESIZE BUFFERSIZE/4   // 数据帧大小
+## 开发与使用指南
 
-// 串口缓冲区
-uint8_t ReceiveBuff1[BUFFERSIZE] = {0};  // USART1接收缓冲区
-uint8_t base_addr1 = 0;                  // USART1缓冲区基地址
-uint8_t recv_frame1[FRAMESIZE] = {0};   // USART1接收数据帧
-uint8_t recv_frame2[FRAMESIZE] = {0};   // USART2接收数据帧
-```
+### 硬件连接
 
-### 2. 主要函数
+1. **串口连接**：
+   - USART1 (PB6/PB7)：连接舵机控制器或主通信设备
+   - USART2 (PB3/PB4)：连接调试终端或辅助设备
 
-#### 初始化函数
-```c
-void MX_USART1_UART_Init(void);   // 初始化USART1
-void MX_USART2_UART_Init(void);   // 初始化USART2
-```
+2. **模拟信号输入**：
+   - PA4-PA7：连接需要采集的模拟信号
+   - SDADC通道：根据硬件设计连接相应传感器
 
-#### 数据帧处理函数
-```c
-void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target);
-```
+### 功能扩展方法
 
-### 3. 数据收发流程
+1. **添加新的传感器**：
+   - 在ADC或SDADC中配置新的通道
+   - 添加相应的数据处理函数
 
-#### 数据接收启动
-在main函数中启动数据接收：
-```c
-// USART1使用DMA接收（循环模式）
-HAL_UARTEx_ReceiveToIdle_DMA(&huart1, ReceiveBuff1, BUFFERSIZE);
+2. **控制更多舵机**：
+   - 使用`fashion_send_single_angle()`函数控制多个舵机
+   - 可通过循环或数组批量控制
 
-// USART2使用中断接收
-HAL_UARTEx_ReceiveToIdle_IT(&huart2, recv_frame2, FRAMESIZE);
-```
-
-#### USART1发送数据 (DMA方式)
-使用DMA进行高效数据传输：
-```c
-// DMA发送数据
-HAL_UART_Transmit_DMA(&huart1, data, length);
-
-// 检查DMA传输状态
-HAL_DMA_GetState(&hdma_usart1_tx);
-```
-
-#### USART2发送数据 (中断方式)
-使用中断方式进行数据传输：
-```c
-HAL_UART_Transmit_IT(&huart2, data, length);
-```
-
-#### 接收数据特点
-- **USART1**: 使用DMA循环模式接收，数据自动存入ReceiveBuff1缓冲区
-- **USART2**: 使用中断方式接收数据到固定大小的帧缓冲区
-- 缓冲区采用环形队列结构，大小为BUFFERSIZE（200字节）
-
-### 4. 数据帧处理机制
-
-#### 函数原型
-```c
-void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target);
-```
-
-#### 参数说明
-- `huart`: UART句柄（&huart1 或 &huart2）
-- `target`: 当前接收数据的尾地址（下标）
-
-#### 处理逻辑
-
-**情况1：正常情况（base_addr ≤ target）**
-```c
-memcpy(recv_frame, &ReceiveBuff[base_addr], target - base_addr);
-base_addr = target;  // 更新基地址
-```
-
-**情况2：环形缓冲区回绕（base_addr > target）**
-```c
-// 第一段：从base_addr到缓冲区末尾
-memcpy(recv_frame, &ReceiveBuff[base_addr], BUFFERSIZE - base_addr);
-
-// 第二段：从缓冲区开头到target
-memcpy(&recv_frame[BUFFERSIZE - base_addr], ReceiveBuff, target);
-
-base_addr = target;  // 更新基地址
-```
-
-#### 使用示例
-```c
-// 在接收中断或主循环中调用
-uint8_t current_tail = /* 获取当前DMA接收位置 */;
-Uart_Dataframe(&huart1, current_tail, size);
-
-// 处理接收到的数据帧
-// recv_frame1 中现在包含了从base_addr1到target的数据
-
-// USART1使用DMA自动回送接收到的数据帧
-// USART2使用中断方式回送接收到的数据帧
-```
-
-### 4. DMA传输优势
-
-#### 性能优势
-- **减少CPU占用**: DMA传输期间CPU可执行其他任务
-- **高效数据传输**: 支持大块数据连续传输
-- **自动缓冲区管理**: 循环模式自动处理缓冲区回绕
-
-#### 配置特点
-- **USART1接收**: 循环模式，适合连续数据流
-- **USART1发送**: 普通模式，适合单次数据传输
-- **自动错误处理**: DMA传输错误自动触发错误回调
-
-## 缓冲区管理
-
-### 环形缓冲区特性
-- 缓冲区大小：BUFFERSIZE（200字节）
-- 接收帧大小：20字节
-- DMA模式：循环接收，自动处理缓冲区回绕
-- 数据拷贝：使用memcpy高效拷贝
-
-### 地址管理
-- `base_addr`: 当前数据帧的起始位置
-- `target`: 新接收数据的结束位置
-- 每次调用`Uart_Dataframe`后，base_addr会更新为target
+3. **自定义通信协议**：
+   - 在`Uart_Dataframe()`基础上扩展协议解析功能
+   - 添加协议验证和错误处理
 
 ## 注意事项
 
-1. **缓冲区溢出**：确保recv_frame大小（20字节）足够存储需要的数据帧
-2. **DMA配置**：接收DMA配置为循环模式，无需手动重启
-3. **中断处理**：可根据需要添加接收完成中断处理
-4. **线程安全**：在多任务环境中使用时需添加互斥保护
+1. **SDADC校准**：系统启动时会自动进行SDADC校准，请确保有足够的校准时间
+
+2. **缓冲区大小**：
+   - USART1接收缓冲区大小为200字节
+   - 确保处理数据的速度不低于接收速度，避免缓冲区溢出
+
+3. **舵机控制**：
+   - 舵机角度单位为0.1度（如900表示90.0度）
+   - 控制时间参数以毫秒为单位
+
+4. **电源供应**：确保为舵机提供足够的电源电流，避免因电流不足导致控制不稳定
 
 ## 项目文件结构
 
 ```
 Core/
 ├── Inc/                           // 头文件目录
-│   ├── main.h                     // 主程序头文件，包含全局定义和引脚定义
+│   ├── main.h                     // 主程序头文件，全局定义和引脚定义
 │   ├── adc.h                      // ADC模块头文件
 │   ├── dma.h                      // DMA模块头文件
+│   ├── fashion_driver.h           // 舵机驱动头文件
 │   ├── gpio.h                     // GPIO模块头文件
 │   ├── i2c.h                      // I2C模块头文件
-│   ├── sdadc.h                    // Sigma-Delta ADC模块头文件
-│   ├── stm32f3xx_hal_conf.h       // HAL库配置文件
-│   ├── stm32f3xx_it.h             // 中断服务程序头文件
+│   ├── sdadc.h                    // SDADC模块头文件
 │   └── usart.h                    // 串口模块头文件
 ├── Src/                           // 源文件目录
-│   ├── main.c                     // 主程序文件，包含系统初始化和主循环
+│   ├── main.c                     // 主程序，系统初始化和主循环
 │   ├── adc.c                      // ADC模块实现
 │   ├── dma.c                      // DMA模块实现
+│   ├── fashion_driver.c           // 舵机驱动实现
+│   ├── fashion_driver_example.c   // 舵机驱动使用示例
 │   ├── gpio.c                     // GPIO模块实现
 │   ├── i2c.c                      // I2C模块实现
-│   ├── sdadc.c                    // Sigma-Delta ADC模块实现
-│   ├── stm32f3xx_hal_msp.c        // HAL MSP回调函数
-│   ├── stm32f3xx_it.c             // 中断服务程序
-│   ├── syscalls.c                 // 系统调用
-│   ├── sysmem.c                   // 系统内存管理
-│   ├── system_stm32f3xx.c         // 系统时钟配置
-│   └── usart.c                    // 串口模块实现（包含数据帧处理）
-└── Startup/                       // 启动文件目录
-    └── startup_stm32f373rctx.s     // STM32启动汇编文件
+│   ├── sdadc.c                    // SDADC模块实现
+│   └── usart.c                    // 串口模块实现
 ```
 
-## 扩展建议
+## 快速开始
 
-1. 可添加数据帧解析函数，对recv_frame中的数据进行协议解析
-2. 可增加发送数据帧的函数，封装数据打包和发送过程
-3. 可添加错误处理机制，如校验和验证、超时处理等
+1. **基本使用**：
+   - 系统启动后自动初始化所有外设并开始数据采集
+   - 可在主循环中添加自定义处理逻辑
+
+2. **舵机控制示例**：
+   ```c
+   // 在main.c中包含头文件
+   #include "fashion_driver.h"
+   
+   // 在while循环中添加
+   void loop() {
+     // 舵机控制示例
+     fashion_send_ping(1);          // 检测舵机
+     HAL_Delay(1000);
+     fashion_send_single_angle(1, 0, 500);     // 转到0度
+     HAL_Delay(1000);
+     fashion_send_single_angle(1, 1800, 500);  // 转到180度
+     HAL_Delay(2000);
+   }
+   ```
+
+3. **数据采集使用**：
+   - SDADC数据自动通过DMA采集到缓冲区
+   - 调用`get_sdadc_dataframe()`获取处理后的完整数据帧
