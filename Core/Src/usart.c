@@ -253,12 +253,12 @@ void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target,uint8_t size){
         base_addr1 = target;
       }
 			// 数据帧响应，例子：数据帧回送
-			HAL_UART_Transmit_DMA(&huart1,recv_frame1,size);
 			//HAL_UART_Transmit_DMA(&huart1,recv_frame1,size);
     } 
 		else if(huart->Instance == USART2) {
 			// 数据帧响应，例子：数据帧回送
-			HAL_UART_Transmit_IT(&huart2,recv_frame2,size);
+			//HAL_UART_Transmit_IT(&huart2,recv_frame2,size);
+			set_ctrl_params();
     }
 }
 /* USER CODE END 1 */

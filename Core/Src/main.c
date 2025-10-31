@@ -59,7 +59,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+ControlParams uartCtrl;
 /* USER CODE END 0 */
 
 /**
@@ -182,7 +182,22 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void set_ctrl_params(void){
+	if(recv_frame2[0]==0xA0&&recv_frame2[1]==0xB3){
+		switch(recv_frame2[2]){
+			case 0x01:	//读取指令
+				HAL_UART_Transmit_IT(&huart2,(uint8_t *)&uartCtrl,sizeof(uartCtrl));
+				break;
+			case 0x02:	//批量写入指令
+				memcpy(&uartCtrl,recv_frame2+3,sizeof(uartCtrl));
+				break;
+      //后续添加其他指令
+			default:
+				break;
+		}
+	}
+	memset(recv_frame2,0,FRAMESIZE);
+}
 /* USER CODE END 4 */
 
 /**

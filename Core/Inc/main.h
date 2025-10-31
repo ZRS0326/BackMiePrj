@@ -37,13 +37,27 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+//角度参数
+typedef union  {
+	uint16_t angle;  // 角度100.0->1000
+	uint16_t distance;  // 距离100->100cm
+}measurePos;
 
+// 参数，上位机控制指令
+typedef struct {
+	measurePos posLow;					//测量位置下限
+	measurePos posHigh;					//测量位置上限
+	measurePos posDiv;					//测量位置分辨率
+	uint16_t adjTime;						//ADC的增益控制周期
+	uint16_t uartUploadTime;			//串口数据上传周期
+	uint16_t fashionTime;				//舵机单角度运行周期
+}ControlParams;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
 #define BUFFERSIZE 200           					//可以接收的最大字符个数   
-#define FRAMESIZE BUFFERSIZE/4           	//可以接收的最大字符个数   
+#define FRAMESIZE 50           	//可以接收的最大字符个数   
 extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区
 extern uint8_t base_addr1;													//基地址1
 extern uint8_t recv_frame1[FRAMESIZE];						//串口帧
@@ -53,6 +67,8 @@ extern uint32_t SDADCBUFF1[4][5];
 extern uint32_t SDADCBUFF2[4][3];
 extern uint16_t data_frame[8];
 extern uint16_t adj_frame[4];
+
+extern ControlParams uartCtrl;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -66,6 +82,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target,uint8_t size);	//处理串口接收数据帧入口
 void get_sdadc_dataframe(void);		//获取一帧sdadc的数据 name: data_frame
+void set_ctrl_params(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
