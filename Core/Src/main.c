@@ -22,6 +22,7 @@
 #include "dma.h"
 #include "i2c.h"
 #include "sdadc.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -59,7 +60,9 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-ControlParams uartCtrl;
+ControlParams uartCtrl = {0};
+uint8_t data_frame_upload[50] = {0};
+
 /* USER CODE END 0 */
 
 /**
@@ -70,7 +73,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	data_frame_upload[0] = 0xA9;
+	data_frame_upload[1] = 0xB5;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -98,6 +102,8 @@ int main(void)
   MX_ADC1_Init();
   MX_SDADC1_Init();
   MX_SDADC3_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,ReceiveBuff1,BUFFERSIZE);
   HAL_UARTEx_ReceiveToIdle_IT(&huart2,recv_frame2,FRAMESIZE);
@@ -111,6 +117,9 @@ int main(void)
 	HAL_SDADC_InjectedStart_DMA(&hsdadc3,SDADCBUFF2[0], 12);	
 	
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adj_frame,4);
+	
+	HAL_TIM_Base_Start_IT(&htim3);
+	//HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -191,12 +200,38 @@ void set_ctrl_params(void){
 			case 0x02:	//批量写入指令
 				memcpy(&uartCtrl,recv_frame2+3,sizeof(uartCtrl));
 				break;
+			case 0x03:  //设置串口发送频率
+				data_arr = 10000 / ((recv_frame2[9]<<8)+recv_frame2[10]) - 1;
+				HAL_TIM_Base_Stop_IT(&htim4);
+				MX_TIM4_Init();
+				break;
+			case 0x04:  //设置自动增益频率
+				adj_arr = 10000 / ((recv_frame2[11]<<8)+recv_frame2[12]) - 1;
+				HAL_TIM_Base_Stop_IT(&htim3);
+				MX_TIM3_Init();
+				HAL_TIM_Base_Start_IT(&htim3);
+				break;
       //后续添加其他指令
 			default:
 				break;
 		}
 	}
 	memset(recv_frame2,0,FRAMESIZE);
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim == &htim3) {
+			// 自动增益调节逻辑
+	}
+	else if(htim == &htim4){
+		// 数据帧逻辑
+		get_sdadc_dataframe();
+		//帧头 0xA9 0xB5
+		memcpy(&data_frame_upload[2],adj_frame,sizeof(adj_frame));	//adc 4*2 = 8Bytes
+		memcpy(&data_frame_upload[10],data_frame,sizeof(data_frame));//sdadc 8*2 = 16Bytes
+		// 增益、帧序号
+		HAL_UART_Transmit_IT(&huart2,data_frame_upload,sizeof(data_frame_upload));
+	}
 }
 /* USER CODE END 4 */
 

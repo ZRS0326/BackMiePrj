@@ -49,7 +49,7 @@ typedef struct {
 	measurePos posHigh;					//测量位置上限
 	measurePos posDiv;					//测量位置分辨率
 	uint16_t adjTime;						//ADC的增益控制周期
-	uint16_t uartUploadTime;			//串口数据上传周期
+	uint16_t uartUploadTime;		//串口数据上传周期
 	uint16_t fashionTime;				//舵机单角度运行周期
 }ControlParams;
 /* USER CODE END ET */
@@ -60,13 +60,16 @@ typedef struct {
 #define FRAMESIZE 50           	//可以接收的最大字符个数   
 extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区
 extern uint8_t base_addr1;													//基地址1
-extern uint8_t recv_frame1[FRAMESIZE];						//串口帧
-extern uint8_t recv_frame2[FRAMESIZE];						//串口帧
+extern uint8_t recv_frame1[FRAMESIZE];						//UART1串口帧
+extern uint8_t recv_frame2[FRAMESIZE];						//UART2串口帧
 
-extern uint32_t SDADCBUFF1[4][5];
-extern uint32_t SDADCBUFF2[4][3];
-extern uint16_t data_frame[8];
-extern uint16_t adj_frame[4];
+extern uint32_t SDADCBUFF1[4][5];   // SDADC1 采集的数据DMA缓冲区
+extern uint32_t SDADCBUFF2[4][3];   // SDADC3 采集的数据DMA缓冲区
+extern uint16_t data_frame[8];      // SDADC 一帧数据
+extern uint16_t adj_frame[4];       // ADC 一帧数据
+
+extern uint16_t data_arr;     //1c/s，设置串口上传频率
+extern uint16_t adj_arr;       //10c/s，设置自动增益调节频率
 
 extern ControlParams uartCtrl;
 /* USER CODE END EC */
