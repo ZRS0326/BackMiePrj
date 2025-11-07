@@ -21,7 +21,7 @@
 #include "i2c.h"
 
 /* USER CODE BEGIN 0 */
-
+uint8_t autoadj[8] = {0};
 /* USER CODE END 0 */
 
 I2C_HandleTypeDef hi2c1;

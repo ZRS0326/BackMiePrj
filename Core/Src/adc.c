@@ -21,7 +21,7 @@
 #include "adc.h"
 
 /* USER CODE BEGIN 0 */
-uint16_t adj_frame[4]={0};
+uint16_t adc_frame[4]={0};
 /* USER CODE END 0 */
 
 ADC_HandleTypeDef hadc1;

@@ -37,20 +37,17 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-//角度参数
-typedef union  {
-	uint16_t angle;  // 角度100.0->1000
-	uint16_t distance;  // 距离100->100cm
-}measurePos;
 
-// 参数，上位机控制指令
+// 参数，上位机控制指令 debug/连续模式/离散模式
 typedef struct {
-	measurePos posLow;					//测量位置下限
-	measurePos posHigh;					//测量位置上限
-	measurePos posDiv;					//测量位置分辨率
+	uint16_t flagMask;					//模式控制掩码
+	uint16_t posLow;					//---/测量位置下限/测量位置下限(角度100.0->1000)
+	uint16_t posHigh;					//---/测量位置上限/测量位置上限(角度100.0->1000)
+	uint16_t posDiv;					//测量点/测量分辨率/测量分辨率(角度100.0->1000)
 	uint16_t adjTime;						//ADC的增益控制周期
-	uint16_t uartUploadTime;		//串口数据上传周期
-	uint16_t fashionTime;				//舵机单角度运行周期
+	uint16_t uartUploadTime;		//串口数据上传周期(采样率)
+	uint16_t fashionTime;				//舵机单角度运行周期(a)
+	uint16_t lidarTime;					//激光器启动延时(b)
 }ControlParams;
 /* USER CODE END ET */
 
@@ -58,20 +55,33 @@ typedef struct {
 /* USER CODE BEGIN EC */
 #define BUFFERSIZE 200           					//可以接收的最大字符个数   
 #define FRAMESIZE 50           	//可以接收的最大字符个数   
+#define DebugMode 0x01					//Debug模式
+#define CMode 0x02					//连续模式
+#define DMode 0x04					//离散模式
+#define Lidar1 0x10 				//激光器1
+#define Lidar2 0x20					//激光器2
+#define Lidar3 0x40					//激光器3
 extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区
 extern uint8_t base_addr1;													//基地址1
 extern uint8_t recv_frame1[FRAMESIZE];						//UART1串口帧
 extern uint8_t recv_frame2[FRAMESIZE];						//UART2串口帧
 
-extern uint32_t SDADCBUFF1[4][5];   // SDADC1 采集的数据DMA缓冲区
-extern uint32_t SDADCBUFF2[4][3];   // SDADC3 采集的数据DMA缓冲区
-extern uint16_t data_frame[8];      // SDADC 一帧数据
-extern uint16_t adj_frame[4];       // ADC 一帧数据
-
+//extern uint32_t SDADCBUFF1[4][5];   // SDADC1 采集的数据DMA缓冲区
+//extern uint32_t SDADCBUFF2[4][3];   // SDADC3 采集的数据DMA缓冲区
+extern uint16_t sdadc_frame[8];      // SDADC 一帧数据
+extern uint16_t adc_frame[4];       // ADC 一帧数据
+extern uint8_t autoadj[8];						//自动增益挡位
 extern uint16_t data_arr;     //1c/s，设置串口上传频率
 extern uint16_t adj_arr;       //10c/s，设置自动增益调节频率
 
 extern ControlParams uartCtrl;
+extern uint8_t mutex_autoadj;	//自动增益调节过程中的锁
+extern uint8_t flag_fashion;		//舵机运行完成
+extern uint8_t data_frame_upload[40];
+extern uint8_t mask_lidar[4];	//00 01 10 11 ....111 000当前只有两个激光器
+extern uint8_t flag_lidar;			//激光器开启状态
+extern uint16_t data_frame_master;//主帧序号
+extern uint16_t data_frame_pos;//子帧序号/位置
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -86,6 +96,10 @@ void Error_Handler(void);
 void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target,uint8_t size);	//处理串口接收数据帧入口
 void get_sdadc_dataframe(void);		//获取一帧sdadc的数据 name: data_frame
 void set_ctrl_params(void);
+void debugModefun(void);
+void cModefun(void);
+void dModefun(void);
+void data_upload(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

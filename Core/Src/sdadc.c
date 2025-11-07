@@ -21,9 +21,9 @@
 #include "sdadc.h"
 
 /* USER CODE BEGIN 0 */
-uint32_t SDADCBUFF1[4][5]={0};
-uint32_t SDADCBUFF2[4][3]={0};
-uint16_t data_frame[8]={0};
+//uint32_t SDADCBUFF1[4][5]={0};
+//uint32_t SDADCBUFF2[4][3]={0};
+uint16_t sdadc_frame[8]={0};
 /* USER CODE END 0 */
 
 SDADC_HandleTypeDef hsdadc1;
@@ -363,12 +363,12 @@ void HAL_SDADC_MspDeInit(SDADC_HandleTypeDef* sdadcHandle)
 /* USER CODE BEGIN 1 */
 void get_sdadc_dataframe(void)
 {
-  uint8_t i;
-  for (i = 0; i < 5; ++i) {
-    data_frame[i] = (uint16_t)((SDADCBUFF1[0][i] + SDADCBUFF1[1][i] + SDADCBUFF1[2][i] + SDADCBUFF1[3][i]) >> 2);
-  }
-	  for (i = 0; i < 3; ++i) {
-    data_frame[i+5] = (uint16_t)((SDADCBUFF2[0][i] + SDADCBUFF2[1][i] + SDADCBUFF2[2][i] + SDADCBUFF2[3][i]) >> 2);
-  }
+//  uint8_t i;
+//  for (i = 0; i < 5; ++i) {
+//    data_frame[i] = (uint16_t)((SDADCBUFF1[0][i] + SDADCBUFF1[1][i] + SDADCBUFF1[2][i] + SDADCBUFF1[3][i]) >> 2);
+//  }
+//	  for (i = 0; i < 3; ++i) {
+//    data_frame[i+5] = (uint16_t)((SDADCBUFF2[0][i] + SDADCBUFF2[1][i] + SDADCBUFF2[2][i] + SDADCBUFF2[3][i]) >> 2);
+//  }
 }
 /* USER CODE END 1 */
