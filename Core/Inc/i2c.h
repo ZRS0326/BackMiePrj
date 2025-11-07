@@ -35,7 +35,12 @@ extern "C" {
 extern I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN Private defines */
-
+#define ADD0 0x58
+#define ADD1 0x5A
+#define ADD2 0x5C
+#define ADD3 0x5E
+#define WRITE 0xFE
+#define READ 0xFF
 /* USER CODE END Private defines */
 
 void MX_I2C1_Init(void);
