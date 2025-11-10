@@ -121,7 +121,7 @@ int main(void)
 	HAL_SDADC_PollForCalibEvent(&hsdadc3, HAL_MAX_DELAY);
 	
 	HAL_SDADC_InjectedStart_DMA(&hsdadc1,(uint32_t*)sdadc_frame, 5);
-	HAL_SDADC_InjectedStart_DMA(&hsdadc3,(uint32_t*)sdadc_frame, 3);	
+	HAL_SDADC_InjectedStart_DMA(&hsdadc3,(uint32_t*)&sdadc_frame[5], 3);	
 	
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_frame,4);
 	
@@ -133,10 +133,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(10);
-		debugModefun();
-		cModefun();
-		dModefun();
+		dataUpload();
+	  HAL_Delay(500);
+		//debugModefun();
+		//cModefun();
+		//dModefun();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -201,7 +202,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void set_ctrl_params(void){
+void setCtrlParams(void){
 	if(recv_frame2[0]==0xA0&&recv_frame2[1]==0xB3){
 		switch(recv_frame2[2]){
 			case 0x01:	//读取指令
@@ -234,12 +235,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			// 自动增益调节逻辑
 	}
 	else if(htim == &htim4){
-		data_upload();
+		dataUpload();
 	}
 }
 
 
-void data_upload(void){
+void dataUpload(void){
 			// 数据帧逻辑
 		memset(&data_frame_upload[2],0,37); //清空数据位
 		//0-1 		帧头0xA9 0xB5						1*2
@@ -259,7 +260,7 @@ void data_upload(void){
 		HAL_UART_Transmit_IT(&huart2,data_frame_upload,sizeof(data_frame_upload));
 }
 
-void debugModefun(){
+void debugModeSet(){
 	HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
 	while(uartCtrl.flagMask & DebugMode) {
 		// 仅调整舵机位置，和激光器工作状态，工作时序通过定时器完成
@@ -275,7 +276,7 @@ void debugModefun(){
 		HAL_Delay(uartCtrl.lidarTime);
 	}
 };
-void cModefun(){
+void cModeSet(){
     while(uartCtrl.flagMask & CMode) {
 			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,mask_lidar[flag_lidar] & 0x01);
 			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,mask_lidar[flag_lidar] & 0x01);			
@@ -287,7 +288,7 @@ void cModefun(){
 			HAL_Delay(uartCtrl.fashionTime);	//等待舵机完成//串口中回传信号时处理帧序号和flag_lidar，开启下一子帧测量
     }
 };
-void dModefun(){
+void dModeSet(){
 		data_frame_pos = uartCtrl.posLow;
 		flag_lidar = 0;
     while(uartCtrl.flagMask & DMode) {
@@ -299,7 +300,7 @@ void dModefun(){
 			HAL_Delay(uartCtrl.lidarTime);	//启动激光器后等待激光器启动
 			while(mutex_autoadj==0){HAL_Delay(1);}
 			// 发送当前帧数据
-			data_upload();
+			dataUpload();
 			++flag_lidar;
 			if(flag_lidar>3) {
 				flag_lidar = 0;

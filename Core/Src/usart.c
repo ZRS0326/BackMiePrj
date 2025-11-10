@@ -242,7 +242,7 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target,uint8_t size){
+void uartDataFrame(UART_HandleTypeDef *huart, uint8_t target,uint8_t size){
     if(huart->Instance == USART1) {
       if(base_addr1 <= target){
         memcpy(recv_frame1, &ReceiveBuff1[base_addr1], target - base_addr1);
@@ -256,9 +256,7 @@ void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target,uint8_t size){
 			//HAL_UART_Transmit_DMA(&huart1,recv_frame1,size);
     } 
 		else if(huart->Instance == USART2) {
-			// 数据帧响应，例子：数据帧回送
-			//HAL_UART_Transmit_IT(&huart2,recv_frame2,size);
-			set_ctrl_params();
+			setCtrlParams();
     }
 }
 /* USER CODE END 1 */

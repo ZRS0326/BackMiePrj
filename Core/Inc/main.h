@@ -93,13 +93,13 @@ extern uint16_t data_frame_pos;//子帧序号/位置
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void Uart_Dataframe(UART_HandleTypeDef *huart, uint8_t target,uint8_t size);	//处理串口接收数据帧入口
-void get_sdadc_dataframe(void);		//获取一帧sdadc的数据 name: data_frame
-void set_ctrl_params(void);
-void debugModefun(void);
-void cModefun(void);
-void dModefun(void);
-void data_upload(void);
+void uartDataFrame(UART_HandleTypeDef *huart, uint8_t target,uint8_t size);	//处理串口接收数据帧入口
+void setCtrlParams(void);
+void debugModeSet(void);
+void cModeSet(void);
+void dModeSet(void);
+void dataUpload(void);
+void modeInit(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
