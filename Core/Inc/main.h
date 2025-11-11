@@ -41,9 +41,9 @@ extern "C" {
 // 参数，上位机控制指令 debug/连续模式/离散模式
 typedef struct {
 	uint16_t flagMask;					//模式控制掩码
-	uint16_t posLow;					//---/测量位置下限/测量位置下限(角度100.0->1000)
-	uint16_t posHigh;					//---/测量位置上限/测量位置上限(角度100.0->1000)
-	uint16_t posDiv;					//测量点/测量分辨率/测量分辨率(角度100.0->1000)
+	int16_t posLow;					//---/测量位置下限/测量位置下限(角度100.0->1000)
+	int16_t posHigh;					//---/测量位置上限/测量位置上限(角度100.0->1000)
+	int16_t posDiv;					//测量点/测量分辨率/测量分辨率(角度100.0->1000)
 	uint16_t adjTime;						//ADC的增益控制周期
 	uint16_t uartUploadTime;		//串口数据上传周期(采样率)
 	uint16_t fashionTime;				//舵机单角度运行周期(a)
@@ -68,18 +68,22 @@ extern uint8_t recv_frame2[FRAMESIZE];						//UART2串口帧
 
 //extern uint32_t SDADCBUFF1[4][5];   // SDADC1 采集的数据DMA缓冲区
 //extern uint32_t SDADCBUFF2[4][3];   // SDADC3 采集的数据DMA缓冲区
-extern uint16_t sdadc_frame[8];      // SDADC 一帧数据
+extern int16_t sdadc_frame[8];      // SDADC 一帧数据
 extern uint16_t adc_frame[4];       // ADC 一帧数据
-extern uint8_t autoadj[8];						//自动增益挡位
+
 extern uint16_t data_arr;     //1c/s，设置串口上传频率
 extern uint16_t adj_arr;       //10c/s，设置自动增益调节频率
 
+extern uint8_t autoadj[8];						//自动增益挡位
+extern uint8_t adjaddr[4];   //自动增益芯片地址
+extern uint8_t readadj;
+
 extern ControlParams uartCtrl;
 extern uint8_t mutex_autoadj;	//自动增益调节过程中的锁
-extern uint8_t flag_fashion;		//舵机运行完成
+extern uint8_t flag_fashion;		//舵机执行指令成功
 extern uint8_t data_frame_upload[40];
 extern uint8_t mask_lidar[4];	//00 01 10 11 ....111 000当前只有两个激光器
-extern uint8_t flag_lidar;			//激光器开启状态
+extern uint8_t flag_lidar;			//激光器开启状态（掩码索引）
 extern uint16_t data_frame_master;//主帧序号
 extern uint16_t data_frame_pos;//子帧序号/位置
 /* USER CODE END EC */

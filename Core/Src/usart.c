@@ -252,8 +252,9 @@ void uartDataFrame(UART_HandleTypeDef *huart, uint8_t target,uint8_t size){
         memcpy(&recv_frame1[BUFFERSIZE - base_addr1], ReceiveBuff1, target);
         base_addr1 = target;
       }
-			// 数据帧响应，例子：数据帧回送
-			//HAL_UART_Transmit_DMA(&huart1,recv_frame1,size);
+			// 数据帧响应，例子：数据帧回送到串口2
+			HAL_UART_Transmit_IT(&huart2,recv_frame1,size);
+			flag_fashion = 1;
     } 
 		else if(huart->Instance == USART2) {
 			setCtrlParams();

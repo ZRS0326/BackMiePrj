@@ -23,7 +23,7 @@
 /* USER CODE BEGIN 0 */
 //uint32_t SDADCBUFF1[4][5]={0};
 //uint32_t SDADCBUFF2[4][3]={0};
-uint16_t sdadc_frame[8]={0};
+int16_t sdadc_frame[8]={0};
 /* USER CODE END 0 */
 
 SDADC_HandleTypeDef hsdadc1;
