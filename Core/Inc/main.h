@@ -40,10 +40,11 @@ extern "C" {
 
 // 参数，上位机控制指令 debug/连续模式/离散模式
 typedef struct {
-	uint16_t flagMask;					//模式控制掩码
+	uint16_t flagMask;					//模式控制掩码、激光器状态 [0x00 0x[lidar][workmask] ]
 	int16_t posLow;					//---/测量位置下限/测量位置下限(角度100.0->1000)
 	int16_t posHigh;					//---/测量位置上限/测量位置上限(角度100.0->1000)
-	int16_t posDiv;					//测量点/测量分辨率/测量分辨率(角度100.0->1000)
+	int16_t posDiv;					//---/测量分辨率/---(角度100.0->1000)
+	int16_t posSet;					//测量点/---/---(角度100.0->1000)
 	uint16_t adjTime;						//ADC的增益控制周期
 	uint16_t uartUploadTime;		//串口数据上传周期(采样率)
 	uint16_t fashionTime;				//舵机单角度运行周期(a)
@@ -55,16 +56,19 @@ typedef struct {
 /* USER CODE BEGIN EC */
 #define BUFFERSIZE 200           					//可以接收的最大字符个数   
 #define FRAMESIZE 50           	//可以接收的最大字符个数   
-#define DebugMode 0x01					//Debug模式
-#define CMode 0x02					//连续模式
-#define DMode 0x04					//离散模式
+#define DebugMode 0x0001					//Debug模式
+#define CMode 0x0002					//连续模式
+#define DMode 0x0004					//离散模式
 #define Lidar1 0x10 				//激光器1
 #define Lidar2 0x20					//激光器2
 #define Lidar3 0x40					//激光器3
+#define Release 0x00					//锁释放/完成标志
+#define Lock 0x01					//锁执行/非完成标志
 extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区
 extern uint8_t base_addr1;													//基地址1
 extern uint8_t recv_frame1[FRAMESIZE];						//UART1串口帧
 extern uint8_t recv_frame2[FRAMESIZE];						//UART2串口帧
+extern uint16_t angle_read;                     // 舵机角度读取缓存
 
 //extern uint32_t SDADCBUFF1[4][5];   // SDADC1 采集的数据DMA缓冲区
 //extern uint32_t SDADCBUFF2[4][3];   // SDADC3 采集的数据DMA缓冲区
@@ -83,7 +87,7 @@ extern uint8_t mutex_autoadj;	//自动增益调节过程中的锁
 extern uint8_t flag_fashion;		//舵机执行指令成功
 extern uint8_t data_frame_upload[40];
 extern uint8_t mask_lidar[4];	//00 01 10 11 ....111 000当前只有两个激光器
-extern uint8_t flag_lidar;			//激光器开启状态（掩码索引）
+extern uint8_t index_lidar;			//激光器开启状态（掩码索引）
 extern uint16_t data_frame_master;//主帧序号
 extern uint16_t data_frame_pos;//子帧序号/位置
 /* USER CODE END EC */
@@ -104,6 +108,7 @@ void cModeSet(void);
 void dModeSet(void);
 void dataUpload(void);
 void modeInit(void);
+void fashion_process_response(uint8_t length);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

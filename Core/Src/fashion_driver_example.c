@@ -26,6 +26,11 @@ void fashion_driver_demo(void)
     // 4. 控制舵机转动到180度
     fashion_send_single_angle(1, 1800, 500);
     HAL_Delay(1000);
+    
+    // 5. 读取舵机当前角度
+    // 注意：需要在串口接收中断中处理返回的数据
+    fashion_read_servo_angle(1);
+    HAL_Delay(500); // 等待响应
 }
 
 /**

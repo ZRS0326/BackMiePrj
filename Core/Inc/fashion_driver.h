@@ -17,7 +17,10 @@ extern "C" {
 
 // 指令控制码
 #define FASHION_CMD_PING              0x01
+#define FASHION_CMD_DATA_READ         0x03  // 数据读取
 #define FASHION_CMD_SINGLE_ANGLE      0x08
+#define FASHION_CMD_READ_ANGLE        0x0A
+#define FASHION_CMD_DATA_MONITOR      0x16  // 数据监控
 
 // 最大数据包长度
 #define FASHION_MAX_PACKET_LENGTH     20
@@ -26,6 +29,10 @@ extern "C" {
 uint8_t fashion_calculate_checksum(uint8_t *data, uint8_t length);
 void fashion_send_ping(uint8_t servo_id);
 void fashion_send_single_angle(uint8_t servo_id, int16_t angle, uint16_t time_ms);
+void fashion_read_servo_angle(uint8_t servo_id);
+void fashion_read_data(uint8_t servo_id, uint8_t data_type);
+void fashion_monitor_data(uint8_t servo_id, uint8_t monitor_type);
+void fashion_process_response(uint8_t length);
 
 #ifdef __cplusplus
 }

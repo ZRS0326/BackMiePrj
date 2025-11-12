@@ -61,11 +61,11 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 ControlParams uartCtrl = {0};
-uint8_t mutex_autoadj = 0;	//自动增益调节过程中的锁
-uint8_t flag_fashion = 0;		//舵机运行完成
+uint8_t mutex_autoadj = Release;	//自动增益调节过程中的锁
+uint8_t flag_fashion = Release;		//舵机运行完成
 uint8_t data_frame_upload[40] = {0};
 uint8_t mask_lidar[4] = {0x00,0x01,0x02,0x03};	//00 01 10 11 ....111 000当前只有两个激光器
-uint8_t flag_lidar = 0;			//激光器开启状态
+uint8_t index_lidar = 0;			//激光器开启状态
 uint16_t data_frame_master = 0;//主帧序号
 uint16_t data_frame_pos = 0;//子帧序号/位置
 
@@ -82,6 +82,15 @@ int main(void)
 	data_frame_upload[0] = 0xA9;
 	data_frame_upload[1] = 0xB5;
 	data_frame_upload[39] = 0x33;
+	uartCtrl.flagMask = 0;					//模式控制掩码
+	uartCtrl.posLow=0;
+	uartCtrl.posHigh=1000;
+	uartCtrl.posDiv=10;
+	uartCtrl.posSet=500;
+	uartCtrl.adjTime=10;
+	uartCtrl.uartUploadTime=1;
+	uartCtrl.fashionTime=1000;
+	uartCtrl.lidarTime=10;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -126,14 +135,13 @@ int main(void)
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_frame,4);
 	
 	HAL_TIM_Base_Start_IT(&htim3);
-	//HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
+	HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		dataUpload();
 	  HAL_Delay(500);
 		debugModeSet();
 		cModeSet();
@@ -204,6 +212,10 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void setCtrlParams(void){
 	if(recv_frame2[0]==0xA0&&recv_frame2[1]==0xB3){
+		static uint8_t iicdata[2];
+		static uint8_t cmd_id;
+		int16_t ang;
+		uint16_t tim;
 		switch(recv_frame2[2]){
 			case 0x01:	//读取指令
 				HAL_UART_Transmit_IT(&huart2,(uint8_t *)&uartCtrl,sizeof(uartCtrl));
@@ -214,7 +226,9 @@ void setCtrlParams(void){
 			case 0x03:  //设置串口发送频率
 				uartCtrl.uartUploadTime = (recv_frame2[3]<<8)+recv_frame2[4];
 				data_arr = 10000 / uartCtrl.uartUploadTime - 1;
-				HAL_TIM_Base_Stop_IT(&htim4);
+				if(HAL_TIM_Base_GetState(&htim4)==HAL_TIM_STATE_BUSY){
+					HAL_TIM_Base_Stop_IT(&htim4); 	//关闭自动上传
+				}
 				MX_TIM4_Init();
 				break;
 			case 0x04:  //设置自动增益频率
@@ -231,30 +245,42 @@ void setCtrlParams(void){
 				uartCtrl.posLow = (recv_frame2[3]<<8)+recv_frame2[4];
 				uartCtrl.posHigh = (recv_frame2[5]<<8)+recv_frame2[6];
 				uartCtrl.posDiv = (recv_frame2[7]<<8)+recv_frame2[8];
+				uartCtrl.posSet = (recv_frame2[9]<<8)+recv_frame2[10];
 				break;
 			case 0x07:	//设置工作模式
 				uartCtrl.flagMask = (recv_frame2[3]<<8)+recv_frame2[4];
 				modeInit();
 				break;			
 			case 0x08:	//设置激光器开启延时
-				uartCtrl.flagMask = (recv_frame2[3]<<8)+recv_frame2[4];
-				modeInit();
+				uartCtrl.lidarTime = (recv_frame2[3]<<8)+recv_frame2[4];
 				break;
 			case 0x11:	//调试IIC读命令
 				HAL_I2C_Master_Receive_DMA(&hi2c1,adjaddr[recv_frame2[3]],&readadj,1);
 				break;			
 			case 0x12:	//调试IIC写命令
-				HAL_I2C_Master_Transmit_DMA(&hi2c1,adjaddr[recv_frame2[3]],&recv_frame2[4],2);
+				iicdata[0] = recv_frame2[4];
+				iicdata[1] = recv_frame2[5];
+				HAL_I2C_Master_Transmit_DMA(&hi2c1,adjaddr[recv_frame2[3]],iicdata,2);
 				break;
 			case 0x13:	//调试舵机是否在线
 				fashion_send_ping(recv_frame2[3]);
 				break;
-			case 0x14:	//设置舵机角度
-				int16_t ang;
-				uint16_t tim;
+			case 0x14:	//调试设置舵机角度
 				memcpy(&ang,&recv_frame2[4],sizeof(ang));
 				memcpy(&tim,&recv_frame2[6],sizeof(tim));
 				fashion_send_single_angle(recv_frame2[3],ang,tim);
+				break;
+			case 0x15:	//调试读取舵机角度
+				fashion_read_servo_angle(recv_frame2[3]);
+				break;
+			case 0x16:	//调试读取数据
+				cmd_id = recv_frame2[4];
+				fashion_read_data(recv_frame2[3],cmd_id);
+				break;
+			case 0x17:	//调试监控数据
+				cmd_id = recv_frame2[4];
+				fashion_monitor_data(recv_frame2[3],cmd_id);
+				break;
       //后续添加其他指令
 			default:
 				break;
@@ -268,6 +294,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			// 自动增益调节逻辑
 	}
 	else if(htim == &htim4){
+		++data_frame_pos;
 		dataUpload();
 	}
 }
@@ -293,66 +320,230 @@ void dataUpload(void){
 		memcpy(&data_frame_upload[26],autoadj,sizeof(autoadj));//autoadj 8*1 = 8Bytes
 		memcpy(&data_frame_upload[34],&data_frame_master,sizeof(data_frame_master));//2Bytes
 		memcpy(&data_frame_upload[36],&data_frame_pos,sizeof(data_frame_pos));//2Bytes
-		data_frame_upload[38]=flag_lidar;//1Bytes
+		data_frame_upload[38]=index_lidar;//1Bytes
 		// 增益、帧序号
 		HAL_UART_Transmit_IT(&huart2,data_frame_upload,sizeof(data_frame_upload));
 }
 
 void debugModeSet(){
-	while(uartCtrl.flagMask & DebugMode) {
-		// 仅调整舵机位置，和激光器工作状态，工作时序通过定时器完成
-		HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,uartCtrl.flagMask & Lidar1);
-		HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,uartCtrl.flagMask & Lidar1);			
-		HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,uartCtrl.flagMask & Lidar2);
-		HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,uartCtrl.flagMask & Lidar2);			
-		HAL_GPIO_WritePin(GPIOA,E3_Pin | W3_Pin,uartCtrl.flagMask & Lidar3);
-		HAL_GPIO_WritePin(GPIOC,S3_Pin | N3_Pin,uartCtrl.flagMask & Lidar3);	
-		if(!flag_fashion){
-			fashion_send_single_angle(0, uartCtrl.posDiv, uartCtrl.fashionTime);
+	if(uartCtrl.flagMask & DebugMode){
+		flag_fashion = Lock;
+		while(uartCtrl.flagMask & DebugMode) {
+			// 仅调整舵机位置，和激光器工作状态，工作时序通过定时器完成
+			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,uartCtrl.flagMask & Lidar1);
+			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,uartCtrl.flagMask & Lidar1);			
+			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,uartCtrl.flagMask & Lidar2);
+			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,uartCtrl.flagMask & Lidar2);			
+			HAL_GPIO_WritePin(GPIOA,E3_Pin | W3_Pin,uartCtrl.flagMask & Lidar3);
+			HAL_GPIO_WritePin(GPIOC,S3_Pin | N3_Pin,uartCtrl.flagMask & Lidar3);
+			while(flag_fashion == Lock){
+				fashion_send_single_angle(0, uartCtrl.posSet, uartCtrl.fashionTime);
+				HAL_Delay(uartCtrl.fashionTime);
+			}
+			if(HAL_TIM_Base_GetState(&htim4)==HAL_TIM_STATE_READY){
+				HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
+			}
+			HAL_Delay(uartCtrl.lidarTime);
 		}
-		if(HAL_TIM_Base_GetState(&htim4)==HAL_TIM_STATE_READY){
-			HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
-		}
-		HAL_Delay(uartCtrl.lidarTime);
 	}
 };
 void cModeSet(){
+	if(uartCtrl.flagMask & CMode){
+		// 初始化舵机位置
+		flag_fashion = Lock;
+		while(flag_fashion){
+			fashion_send_single_angle(0, uartCtrl.posLow, uartCtrl.fashionTime);//启动舵机到初始位置posLow
+			HAL_Delay(uartCtrl.fashionTime);
+		}
+		
+		// 初始化变量
+		int16_t curpos = uartCtrl.posLow; // 确保从posLow开始
+		index_lidar = 0; // 重置激光器索引
+		data_frame_master = 0; // 重置主帧序号
+		uint8_t retry_count = 0; // 重试计数器
+		const uint8_t MAX_RETRIES = 3; // 最大重试次数
+		
     while(uartCtrl.flagMask & CMode) {
-			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,mask_lidar[flag_lidar] & 0x01);
-			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,mask_lidar[flag_lidar] & 0x01);			
-			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,mask_lidar[flag_lidar] & 0x02);
-			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,mask_lidar[flag_lidar] & 0x02);	
+			// 设置激光器状态
+			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,mask_lidar[index_lidar] & 0x01);
+			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,mask_lidar[index_lidar] & 0x01);
+			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,mask_lidar[index_lidar] & 0x02);
+			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,mask_lidar[index_lidar] & 0x02);
 			HAL_Delay(uartCtrl.lidarTime);	//启动激光器后等待激光器启动
-			fashion_send_single_angle(0, uartCtrl.posDiv, uartCtrl.fashionTime);//启动舵机
-			HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
-			HAL_Delay(uartCtrl.fashionTime);	//等待舵机完成//串口中回传信号时处理帧序号和flag_lidar，开启下一子帧测量
-    }
-};
-void dModeSet(){
-		data_frame_pos = uartCtrl.posLow;
-		flag_lidar = 0;
-    while(uartCtrl.flagMask & DMode) {
-			fashion_send_single_angle(0, data_frame_pos, uartCtrl.fashionTime);//启动舵机
-			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,mask_lidar[flag_lidar] & 0x01);
-			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,mask_lidar[flag_lidar] & 0x01);			
-			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,mask_lidar[flag_lidar] & 0x02);
-			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,mask_lidar[flag_lidar] & 0x02);	
-			HAL_Delay(uartCtrl.lidarTime);	//启动激光器后等待激光器启动
-			while(mutex_autoadj!=0){HAL_Delay(1);}
-			// 发送当前帧数据
-			dataUpload();
-			++flag_lidar;
-			if(flag_lidar>3) {
-				flag_lidar = 0;
-				data_frame_pos+=uartCtrl.posDiv;
-				if(data_frame_pos>uartCtrl.posHigh) data_frame_pos = uartCtrl.posLow;
+			
+			// 切换舵机目标位置
+			int16_t target_pos = (curpos == uartCtrl.posLow) ? uartCtrl.posHigh : uartCtrl.posLow;
+			
+			// 重试机制，确保舵机到达目标位置
+			retry_count = 0;
+			uint8_t position_reached = 0;
+			
+			while(retry_count < MAX_RETRIES && !position_reached) {
+				// 重置子帧序号
+				data_frame_pos = 0;
+				
+				// 启动舵机并开始发送数据
+				flag_fashion = Lock;
+				fashion_send_single_angle(0, target_pos, uartCtrl.fashionTime);
+				HAL_TIM_Base_Start_IT(&htim4); // 启动定时器发送数据
+				
+				// 等待舵机完成
+				HAL_Delay(uartCtrl.fashionTime);
+				HAL_Delay(uartCtrl.lidarTime);
+				
+				// 读取舵机实际位置进行确认
+				flag_fashion = Lock;
+				fashion_read_servo_angle(0);
+				// 等待读取结果
+				while(flag_fashion) {
+					HAL_Delay(1);
+				}
+				
+				// 检查舵机是否到达目标位置（允许一定误差范围）
+				if(angle_read == target_pos) { // 假设误差范围为10
+					position_reached = 1;
+				} else {
+					++retry_count;
+					// 关闭定时器，准备重试
+					HAL_TIM_Base_Stop_IT(&htim4);
+					HAL_Delay(100); // 短暂延迟后重试
+				}
+			}
+			
+			// 关闭定时器
+			HAL_TIM_Base_Stop_IT(&htim4);
+			
+			// 只有在舵机到达目标位置时才更新当前位置
+			if(position_reached) {
+				curpos = target_pos;
+				
+				// 更新激光器索引
+				++index_lidar;
+				if(index_lidar >= 4) { // 完成一轮
+					index_lidar = 0;
+					++data_frame_master;
+				}
 			}
     }
+	}
+};
+void dModeSet(){
+		if(uartCtrl.flagMask & DMode){
+		data_frame_pos = uartCtrl.posLow;
+		index_lidar = 0;
+		uint8_t direction = 1; // 1表示正向扫描，0表示反向扫描
+		uint16_t angle_read[1] = {0}; // 用于存储读取的舵机角度
+		uint8_t position_reached = 0;
+		uint8_t retry_count = 0;
+		const uint8_t MAX_RETRY = 3; // 最大重试次数
+    
+		while(uartCtrl.flagMask & DMode) {
+			// 初始化位置标志和重试计数
+			position_reached = 0;
+			retry_count = 0;
+			
+			// 检查并修正舵机位置范围
+			if(data_frame_pos < uartCtrl.posLow) {
+				data_frame_pos = uartCtrl.posLow;
+				direction = 1;
+			} else if(data_frame_pos > uartCtrl.posHigh) {
+				data_frame_pos = uartCtrl.posHigh;
+				direction = 0;
+			}
+			
+			// 发送舵机到目标位置
+			fashion_send_single_angle(0, data_frame_pos, uartCtrl.fashionTime);
+			
+			// 等待舵机到达目标位置（带重试机制）
+			while(!position_reached && retry_count < MAX_RETRY) {
+				HAL_Delay(uartCtrl.fashionTime); // 等待舵机动作
+				HAL_Delay(uartCtrl.lidarTime); // 等待激光器启动时间
+				
+				// 读取实际舵机角度
+				fashion_read_servo_angle(0);
+				
+				// 检查舵机是否到达目标位置
+				if(angle_read[0] == data_frame_pos) {
+					position_reached = 1;
+				} else {
+					retry_count++;
+					// 重新发送舵机到目标位置
+					fashion_send_single_angle(0, data_frame_pos, uartCtrl.fashionTime);
+				}
+			}
+			
+			// 只有当舵机到达目标位置时才继续
+			if(position_reached) {
+				// 依次开启激光器
+				HAL_GPIO_WritePin(GPIOA, E1_Pin | W1_Pin, mask_lidar[index_lidar] & 0x01);
+				HAL_GPIO_WritePin(GPIOC, S1_Pin | N1_Pin, mask_lidar[index_lidar] & 0x01);
+				HAL_GPIO_WritePin(GPIOA, E2_Pin | W2_Pin, mask_lidar[index_lidar] & 0x02);
+				HAL_GPIO_WritePin(GPIOC, S2_Pin | N2_Pin, mask_lidar[index_lidar] & 0x02);
+				
+				// 等待激光器稳定
+				HAL_Delay(uartCtrl.lidarTime);
+				
+				// 等待自动增益调节完成
+				while(mutex_autoadj != 0) {
+					HAL_Delay(1);
+				}
+				
+				// 上传当前数据
+				dataUpload();
+				
+				// 更新激光器索引
+				index_lidar++;
+				if(index_lidar > 3) {
+					index_lidar = 0;
+					
+					// 实现来回扫描逻辑
+					if(direction) {
+						// 正向扫描
+						data_frame_pos += uartCtrl.posDiv;
+						// 如果到达上边界，改变方向
+						if(data_frame_pos > uartCtrl.posHigh) {
+							direction = 0;
+							data_frame_pos = uartCtrl.posHigh - uartCtrl.posDiv;
+							// 确保不小于最小值
+							if(data_frame_pos < uartCtrl.posLow) {
+								data_frame_pos = uartCtrl.posLow;
+							}
+						}
+					} else {
+						// 反向扫描
+						data_frame_pos -= uartCtrl.posDiv;
+						// 如果到达下边界，改变方向
+						if(data_frame_pos < uartCtrl.posLow) {
+							direction = 1;
+							data_frame_pos = uartCtrl.posLow + uartCtrl.posDiv;
+							// 确保不大于最大值
+							if(data_frame_pos > uartCtrl.posHigh) {
+								data_frame_pos = uartCtrl.posHigh;
+							}
+						}
+					}
+					
+					// 主帧序号自增
+					data_frame_master++;
+				}
+			}
+			
+			// 关闭所有激光器
+			HAL_GPIO_WritePin(GPIOA, E1_Pin | W1_Pin | E2_Pin | W2_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOC, S1_Pin | N1_Pin | S2_Pin | N2_Pin, GPIO_PIN_RESET);
+    }
+	}
 };
 
 void modeInit(){
-  flag_fashion = 0;
-	flag_lidar = 0;
+	if(HAL_TIM_Base_GetState(&htim4)==HAL_TIM_STATE_BUSY){
+		HAL_TIM_Base_Stop_IT(&htim4); 	//关闭自动上传
+	}
+	if(uartCtrl.flagMask==0){
+		HAL_TIM_Base_Start_IT(&htim4);
+	}
+	flag_fashion = Release;
+	index_lidar = 0;
 	data_frame_master = 0;
 	data_frame_pos = 0;
 }
