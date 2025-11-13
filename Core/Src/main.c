@@ -280,6 +280,19 @@ void setCtrlParams(void){
 			case 0x17:	//调试监控数据
 				cmd_id = recv_frame2[4];
 				fashion_monitor_data(recv_frame2[3],cmd_id);
+				break;			
+			case 0x21:	//带参数启动debug
+				//需要参数posSet、fashiontime、
+				uartCtrl.flagMask = (recv_frame2[3]<<8)+recv_frame2[4];
+				uartCtrl.posSet = (recv_frame2[5]<<8)+recv_frame2[6];
+				uartCtrl.fashionTime = (recv_frame2[7]<<8)+recv_frame2[8];
+				modeInit();
+				break;			
+			case 0x22:	//带参数启动cMode
+
+				break;			
+			case 0x23:	//带参数启动dMode
+				
 				break;
       //后续添加其他指令
 			default:
