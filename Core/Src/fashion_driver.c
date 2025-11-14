@@ -17,16 +17,13 @@ void fashion_process_response(uint8_t length)
     switch (recv_frame1[2])
     {
         case FASHION_CMD_READ_ANGLE: // 角度读取回包 (0x0A)
-            if (recv_frame1[3] == 0x03)
-            {  
-                angle_read = ((uint16_t)recv_frame1[6] << 8) | recv_frame1[5];
-                flag_fashion = Release;
-            }
+						angle_read = ((uint16_t)recv_frame1[6] << 8) | recv_frame1[5];                
+						flag_fashion = Release;
             break;
         case FASHION_CMD_SINGLE_ANGLE: // 角度控制回包 (0x08)  
-				if (recv_frame1[5] == 0x01){                  
-					flag_fashion = Release;
-				}
+						if (recv_frame1[5] == 0x01){                  
+							flag_fashion = Release;
+						}
             break;
         case FASHION_CMD_PING: // 通讯检测回包 (0x01)
 						HAL_UART_Transmit_IT(&huart2, recv_frame1, 6);

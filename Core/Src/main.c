@@ -29,6 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "fashion_driver.h"
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -289,7 +290,13 @@ void setCtrlParams(void){
 				modeInit();
 				break;			
 			case 0x22:	//带参数启动cMode
-
+				//需要参数posLow、posHigh、fashiontime、lidartime
+				uartCtrl.flagMask = (recv_frame2[3]<<8)+recv_frame2[4];
+				uartCtrl.posLow = (recv_frame2[5]<<8)+recv_frame2[6];
+				uartCtrl.posHigh = (recv_frame2[7]<<8)+recv_frame2[8];
+				uartCtrl.fashionTime = (recv_frame2[9]<<8)+recv_frame2[10];
+				uartCtrl.lidarTime = (recv_frame2[11]<<8)+recv_frame2[12];
+				modeInit();
 				break;			
 			case 0x23:	//带参数启动dMode
 				
@@ -351,7 +358,7 @@ void debugModeSet(){
 			HAL_GPIO_WritePin(GPIOC,S3_Pin | N3_Pin,uartCtrl.flagMask & Lidar3);
 			while(flag_fashion == Lock){
 				fashion_send_single_angle(0, uartCtrl.posSet, uartCtrl.fashionTime);
-				HAL_Delay(uartCtrl.fashionTime);
+				HAL_Delay(uartCtrl.fashionTime + uartCtrl.lidarTime);
 			}
 			if(HAL_TIM_Base_GetState(&htim4)==HAL_TIM_STATE_READY){
 				HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
@@ -364,82 +371,63 @@ void cModeSet(){
 	if(uartCtrl.flagMask & CMode){
 		// 初始化舵机位置
 		flag_fashion = Lock;
-		while(flag_fashion){
+		while(flag_fashion == Lock){
 			fashion_send_single_angle(0, uartCtrl.posLow, uartCtrl.fashionTime);//启动舵机到初始位置posLow
-			HAL_Delay(uartCtrl.fashionTime);
+			HAL_Delay(uartCtrl.fashionTime + uartCtrl.lidarTime);
 		}
-		
-		// 初始化变量
-		int16_t curpos = uartCtrl.posLow; // 确保从posLow开始
-		index_lidar = 0; // 重置激光器索引
-		data_frame_master = 0; // 重置主帧序号
-		uint8_t retry_count = 0; // 重试计数器
-		const uint8_t MAX_RETRIES = 3; // 最大重试次数
-		
+
+		int16_t target;
     while(uartCtrl.flagMask & CMode) {
 			// 设置激光器状态
 			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,mask_lidar[index_lidar] & 0x01);
 			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,mask_lidar[index_lidar] & 0x01);
 			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,mask_lidar[index_lidar] & 0x02);
 			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,mask_lidar[index_lidar] & 0x02);
-			HAL_Delay(uartCtrl.lidarTime);	//启动激光器后等待激光器启动
-			
+			HAL_Delay(uartCtrl.lidarTime);	//等待激光器启动
+
+			// 读取当前位置
+			while(angle_read != uartCtrl.posLow && angle_read != uartCtrl.posHigh){
+				fashion_read_servo_angle(0);
+				HAL_Delay(10);
+			}
+
 			// 切换舵机目标位置
-			int16_t target_pos = (curpos == uartCtrl.posLow) ? uartCtrl.posHigh : uartCtrl.posLow;
+			target = (angle_read == uartCtrl.posLow) ? uartCtrl.posHigh : uartCtrl.posLow;
+			
+			
+			// 启动舵机并开始发送数据
+			flag_fashion = Lock;
+			fashion_send_single_angle(0, target, uartCtrl.fashionTime);
+			data_frame_pos = 0;		//子帧计数清零
+			HAL_TIM_Base_Start_IT(&htim4); // 启动定时器发送数据
+			
 			
 			// 重试机制，确保舵机到达目标位置
-			retry_count = 0;
-			uint8_t position_reached = 0;
-			
-			while(retry_count < MAX_RETRIES && !position_reached) {
-				// 重置子帧序号
-				data_frame_pos = 0;
-				
-				// 启动舵机并开始发送数据
-				flag_fashion = Lock;
-				fashion_send_single_angle(0, target_pos, uartCtrl.fashionTime);
-				HAL_TIM_Base_Start_IT(&htim4); // 启动定时器发送数据
-				
-				// 等待舵机完成
-				HAL_Delay(uartCtrl.fashionTime);
+			HAL_Delay(uartCtrl.lidarTime);
+			if(flag_fashion == Lock){
+				fashion_send_single_angle(0, target, uartCtrl.fashionTime);//启动舵机到初始位置posLow
 				HAL_Delay(uartCtrl.lidarTime);
-				
-				// 读取舵机实际位置进行确认
-				flag_fashion = Lock;
-				fashion_read_servo_angle(0);
-				// 等待读取结果
-				while(flag_fashion) {
-					HAL_Delay(1);
-				}
-				
-				// 检查舵机是否到达目标位置（允许一定误差范围）
-				if(angle_read == target_pos) { // 假设误差范围为10
-					position_reached = 1;
-				} else {
-					++retry_count;
-					// 关闭定时器，准备重试
-					HAL_TIM_Base_Stop_IT(&htim4);
-					HAL_Delay(100); // 短暂延迟后重试
-				}
 			}
+			
+			// 等待舵机完成
+			HAL_Delay(uartCtrl.fashionTime);
 			
 			// 关闭定时器
 			HAL_TIM_Base_Stop_IT(&htim4);
 			
-			// 只有在舵机到达目标位置时才更新当前位置
-			if(position_reached) {
-				curpos = target_pos;
-				
-				// 更新激光器索引
-				++index_lidar;
-				if(index_lidar >= 4) { // 完成一轮
-					index_lidar = 0;
-					++data_frame_master;
-				}
+			//读取当前角度信息
+			fashion_read_servo_angle(0);
+			
+			// 更新激光器索引
+			++index_lidar;
+			if(index_lidar >= 4) { // 完成一轮
+				index_lidar = 0;
+				++data_frame_master;
 			}
     }
 	}
 };
+
 void dModeSet(){
 		if(uartCtrl.flagMask & DMode){
 		data_frame_pos = uartCtrl.posLow;
