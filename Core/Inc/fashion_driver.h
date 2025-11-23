@@ -21,9 +21,12 @@ extern "C" {
 #define FASHION_CMD_SINGLE_ANGLE      0x08
 #define FASHION_CMD_READ_ANGLE        0x0A
 #define FASHION_CMD_DATA_MONITOR      0x16  // 数据监控
+#define FASHION_CMD_SYNC              0x19  // 同步指令
 
 // 最大数据包长度
 #define FASHION_MAX_PACKET_LENGTH     20
+#define FASHION_SYNC_SETANGLE_LENGTH  0x1F
+#define FASHION_SYNC_MONITOR_LENGTH  	0x07
 
 // 函数声明
 uint8_t fashion_calculate_checksum(uint8_t *data, uint8_t length);
@@ -33,6 +36,8 @@ void fashion_read_servo_angle(uint8_t servo_id);
 void fashion_read_data(uint8_t servo_id, uint8_t data_type);
 void fashion_monitor_data(uint8_t servo_id, uint8_t monitor_type);
 void fashion_process_response(uint8_t length);
+void fashion_sync_set_angle(int16_t angle, uint16_t time_ms);
+void fashion_sync_data_monitor();
 
 #ifdef __cplusplus
 }

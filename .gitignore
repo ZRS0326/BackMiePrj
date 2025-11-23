@@ -26,6 +26,7 @@ build/
 .cproject
 .mxproject
 .settings/
+.vscode/
 
 # Keil MDK-ARM 项目文件
 MDK-ARM/*.uvguix.*
