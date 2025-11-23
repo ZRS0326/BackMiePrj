@@ -29,7 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "fashion_driver.h"
-#include <math.h>
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -261,14 +261,20 @@ void setCtrlParams(void){
 			case 0x12:	//调试IIC写命令
 				iicdata[0] = recv_frame2[4];
 				iicdata[1] = recv_frame2[5];
+				if(recv_frame2[4]==0x00){
+					autoadj[recv_frame2[3]] = recv_frame2[5];
+				}else{
+					autoadj[recv_frame2[3]+4] = recv_frame2[5];
+				}
 				HAL_I2C_Master_Transmit_DMA(&hi2c1,adjaddr[recv_frame2[3]],iicdata,2);
 				break;
 			case 0x13:	//调试舵机是否在线
 				fashion_send_ping(recv_frame2[3]);
 				break;
 			case 0x14:	//调试设置舵机角度
-				memcpy(&ang,&recv_frame2[4],sizeof(ang));
-				memcpy(&tim,&recv_frame2[6],sizeof(tim));
+				
+				ang = (recv_frame2[4]<<8)+recv_frame2[5];
+				tim = (recv_frame2[6]<<8)+recv_frame2[7];
 				fashion_send_single_angle(recv_frame2[3],ang,tim);
 				break;
 			case 0x15:	//调试读取舵机角度
@@ -309,23 +315,17 @@ void setCtrlParams(void){
 	memset(recv_frame2,0,FRAMESIZE);
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if(htim == &htim3) {
-			// 自动增益调节逻辑
-	}
-	else if(htim == &htim4){
-		++data_frame_pos;
-		dataUpload();
-	}
-}
-void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c){
-	--mutex_autoadj;	//调节完成后释放锁
-}
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c){
-	HAL_UART_Transmit_IT(&huart2,&readadj,sizeof(readadj));
-}
-
 void dataUpload(void){
+		if(uartCtrl.flagMask&SPMode){
+			char buffer[50];
+			int V0 = (sdadc_frame[0] + 32767) * 3300 / 65535;
+			int V1 = (sdadc_frame[3] + 32767) * 3300 / 65535;
+			int V2 = adc_frame[1] * 3300 / 4095;
+			float A_origin = 1000 * V0 / ((256 - autoadj[0]) * 3.92); //nA
+			sprintf(buffer,"%d,%d,%d,%d,%d,%d,%.4f\r\n", sdadc_frame[0], sdadc_frame[3], adc_frame[1],V0,V1,V2,A_origin);
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)buffer, strlen(buffer));
+			return;
+		}
 			// 数据帧逻辑
 		memset(&data_frame_upload[2],0,37); //清空数据位
 		//0-1 		帧头0xA9 0xB5						1*2
@@ -385,14 +385,14 @@ void cModeSet(){
 			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,mask_lidar[index_lidar] & 0x02);
 			HAL_Delay(uartCtrl.lidarTime);	//等待激光器启动
 
-			// 读取当前位置
-			while(angle_read != uartCtrl.posLow && angle_read != uartCtrl.posHigh){
+			// 读取当前位置(一度误差)
+			while(abs(angle_read-uartCtrl.posLow)>10  &&  abs(angle_read-uartCtrl.posHigh)>10){
 				fashion_read_servo_angle(0);
 				HAL_Delay(10);
 			}
 
 			// 切换舵机目标位置
-			target = (angle_read == uartCtrl.posLow) ? uartCtrl.posHigh : uartCtrl.posLow;
+			target = (abs(angle_read-uartCtrl.posLow)<=10) ? uartCtrl.posHigh : uartCtrl.posLow;
 			
 			
 			// 启动舵机并开始发送数据
@@ -540,13 +540,80 @@ void modeInit(){
 	if(HAL_TIM_Base_GetState(&htim4)==HAL_TIM_STATE_BUSY){
 		HAL_TIM_Base_Stop_IT(&htim4); 	//关闭自动上传
 	}
-	if(uartCtrl.flagMask==0){
+	if(uartCtrl.flagMask==0 || uartCtrl.flagMask==0x0008){
 		HAL_TIM_Base_Start_IT(&htim4);
 	}
 	flag_fashion = Release;
 	index_lidar = 0;
 	data_frame_master = 0;
 	data_frame_pos = 0;
+}
+float V_ad_1[4] = {0};
+float A_origin[4] = {0};
+float A_thresh = 10;
+float V_ref = 3300;
+float V_max = 150;
+float V_min = 50;
+float V_target = 100;
+float R_target = 0;
+uint8_t autoadj_target = 0;
+uint8_t Adj_flag = 0;
+uint16_t Arr_label[4] = {0, 1, 2 ,5};
+void autoGainAdj(void){
+	uint8_t i = 0;
+	for (i=0;i<4;i++){
+		// 1. 由SDADC的值转换为第一级放大电压V1
+		V_ad_1[i] = (sdadc_frame[Arr_label[i]] + 32767) * V_ref / 65535; //i, Arr_label[i]
+		A_origin[i] = 1000 * V_ad_1[i] / ((256 - autoadj[i]) * 3.92); //i,i,2i+1, 电流单位是nA
+
+		// 2. 判断是否需要调节
+		if (V_ad_1[i] > V_max) {
+		    Adj_flag = 1;      // 过压：减小增益
+		}
+		else if (V_ad_1[i] <= V_min && A_origin[i] >= A_thresh) {
+		    Adj_flag = 1;      // 欠压且电流仍大：增大增益
+		}
+
+		// 3. 若需调节则计算新阻值和目标档位
+		if (Adj_flag) {
+		    R_target = 1e6f * V_target / A_origin[i];       // Ω
+		    autoadj_target = (uint8_t)(256 - (R_target / 3920.0f));
+
+		    // 限幅处理
+		    if (autoadj_target > 255) {
+		    	autoadj_target = 255;
+		    }
+		    if (autoadj_target < 1) {
+		    	autoadj_target = 1;   // 防止0档过小
+		    }
+
+		    // 更新增益
+		    autoadj[i] = autoadj_target;
+				uint8_t iicdata[2] = {0};
+				iicdata[1] = autoadj_target;
+				HAL_I2C_Master_Transmit_DMA(&hi2c1, adjaddr[i], iicdata, 2);
+		}
+
+		Adj_flag = 0;
+	}
+
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if(htim == &htim3) {
+		autoGainAdj();
+	}
+	else if(htim == &htim4){
+		++data_frame_pos;
+		dataUpload();
+	}
+}
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c){
+	--mutex_autoadj;	//调节完成后释放锁
+}
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c){
+	HAL_UART_Transmit_IT(&huart2,&readadj,sizeof(readadj));
 }
 /* USER CODE END 4 */
 

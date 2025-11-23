@@ -24,6 +24,9 @@ void fashion_process_response(uint8_t length)
 						if (recv_frame1[5] == 0x01){                  
 							flag_fashion = Release;
 						}
+						else{
+							HAL_UART_Transmit_IT(&huart2, recv_frame1, length);
+						}
             break;
         case FASHION_CMD_PING: // 通讯检测回包 (0x01)
 						HAL_UART_Transmit_IT(&huart2, recv_frame1, 6);

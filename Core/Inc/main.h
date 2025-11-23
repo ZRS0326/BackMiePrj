@@ -59,6 +59,7 @@ typedef struct {
 #define DebugMode 0x0001					//Debug模式
 #define CMode 0x0002					//连续模式
 #define DMode 0x0004					//离散模式
+#define SPMode 0x0008					//单通道printf模式
 #define Lidar1 0x10 				//激光器1
 #define Lidar2 0x20					//激光器2
 #define Lidar3 0x40					//激光器3
@@ -109,6 +110,7 @@ void dModeSet(void);
 void dataUpload(void);
 void modeInit(void);
 void fashion_process_response(uint8_t length);
+void autoGainAdj(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

@@ -22,7 +22,7 @@
 
 /* USER CODE BEGIN 0 */
 uint16_t data_arr = 9999;     //1c/s
-uint16_t adj_arr = 999;       //10c/s
+uint16_t adj_arr = 99;       //100c/s
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim3;
