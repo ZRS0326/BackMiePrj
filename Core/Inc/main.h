@@ -63,6 +63,10 @@ typedef struct {
 #define Lidar1 0x10 				//激光器1
 #define Lidar2 0x20					//激光器2
 #define Lidar3 0x40					//激光器3
+#define CHE 0x0100 					//方向E
+#define CHS 0x0200 					//方向S
+#define CHW 0x0400 					//方向W
+#define CHN 0x0800 					//方向N
 #define Release 0x00					//锁释放/完成标志
 #define Lock 0x01					//锁执行/非完成标志
 extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区

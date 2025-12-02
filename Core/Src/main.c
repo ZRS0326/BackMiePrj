@@ -83,7 +83,7 @@ int main(void)
 	data_frame_upload[0] = 0xA9;
 	data_frame_upload[1] = 0xB5;
 	data_frame_upload[39] = 0x33;
-	uartCtrl.flagMask = 0;					//模式控制掩码
+	uartCtrl.flagMask = 0 | SPMode;					//模式控制掩码
 	uartCtrl.posLow=0;
 	uartCtrl.posHigh=1000;
 	uartCtrl.posDiv=10;
@@ -133,10 +133,25 @@ int main(void)
 	HAL_SDADC_InjectedStart_DMA(&hsdadc1,(uint32_t*)sdadc_frame, 5);
 	HAL_SDADC_InjectedStart_DMA(&hsdadc3,(uint32_t*)&sdadc_frame[5], 3);	
 	
-	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_frame,4);
+	//HAL_ADC_Start_DMA(&hadc1,(uint32_t*)adc_frame,4);
 	
 	HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Base_Start_IT(&htim4); 	//发送串口数据
+
+	for(int i=0;i<4;++i){
+		uint8_t iicd[2];
+		iicd[0] = 0x80;
+		iicd[1] = autoadj[i+4];
+		HAL_I2C_Master_Transmit_DMA(&hi2c1, adjaddr[i], iicd, 2);
+		HAL_Delay(20);
+	}	
+	for(int i=0;i<4;++i){
+		uint8_t iicd[2];
+		iicd[0] = 0x00;
+		iicd[1] = autoadj[i];
+		HAL_I2C_Master_Transmit_DMA(&hi2c1, adjaddr[i], iicd, 2);
+		HAL_Delay(20);
+	}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -295,6 +310,14 @@ void setCtrlParams(void){
 			case 0x19:
 				fashion_sync_data_monitor();
 				break;
+			case 0x1A:
+				HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,1);
+				//HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,uartCtrl.flagMask & Lidar1);			
+				//HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,uartCtrl.flagMask & Lidar2);
+				HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,1);			
+				//HAL_GPIO_WritePin(GPIOA,E3_Pin | W3_Pin,uartCtrl.flagMask & Lidar3);
+				//HAL_GPIO_WritePin(GPIOC,S3_Pin | N3_Pin,uartCtrl.flagMask & Lidar3);
+				break;
 			case 0x21:	//带参数启动debug
 				//需要参数posSet、fashiontime、
 				uartCtrl.flagMask = (recv_frame2[3]<<8)+recv_frame2[4];
@@ -325,16 +348,20 @@ void setCtrlParams(void){
 void dataUpload(void){
 		if(uartCtrl.flagMask&SPMode){
 			char buffer[50];
-			int V0 = (sdadc_frame[0] + 32767) * 3300 / 65535;
-			int V1 = (sdadc_frame[3] + 32767) * 3300 / 65535;
-			int V2 = adc_frame[1] * 3300 / 4095;
+			int V0 = (sdadc_frame[0] + 32767) * 3300.0 / 65535.0;
+			int V1 = (sdadc_frame[4] + 32767) * 3300.0 / 65535.0;
 			float A_origin = 1000 * V0 / ((256 - autoadj[0]) * 3.92); //nA
-			sprintf(buffer,"%d,%d,%d,%d,%d,%d,%.4f\r\n", sdadc_frame[0], sdadc_frame[3], adc_frame[1],V0,V1,V2,A_origin);
+			sprintf(buffer,"%.4f,%d,%d,%d,%d,%d\r\n", A_origin,V0,V1,sdadc_frame[0], sdadc_frame[4], autoadj[0]);
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*)buffer, strlen(buffer));
 			return;
 		}
+		//ch1[1,0,4]
+		//ch4[]
 			// 数据帧逻辑
 		memset(&data_frame_upload[2],0,37); //清空数据位
+		memcpy(&data_frame_upload[2],sdadc_frame,sizeof(sdadc_frame));//sdadc 8*2 = 16Bytes
+		memcpy(&data_frame_upload[18],autoadj,sizeof(autoadj));//autoadj 8*1 = 8Bytes
+		HAL_UART_Transmit_IT(&huart2,data_frame_upload,26);
 		//0-1 		帧头0xA9 0xB5						1*2
 		//2-9 		4ch adc 								4*2
 		//10-25 	8ch sdadc 							8*2
@@ -342,14 +369,14 @@ void dataUpload(void){
 		//34-37		2ch frame(master/slave)	2*2
 		//38			1ch lidar state					1*1
 		//39			帧尾0x33								1*1
-		memcpy(&data_frame_upload[2],adc_frame,sizeof(adc_frame));	//adc 4*2 = 8Bytes
-		memcpy(&data_frame_upload[10],sdadc_frame,sizeof(sdadc_frame));//sdadc 8*2 = 16Bytes
-		memcpy(&data_frame_upload[26],autoadj,sizeof(autoadj));//autoadj 8*1 = 8Bytes
-		memcpy(&data_frame_upload[34],&data_frame_master,sizeof(data_frame_master));//2Bytes
-		memcpy(&data_frame_upload[36],&data_frame_pos,sizeof(data_frame_pos));//2Bytes
-		data_frame_upload[38]=index_lidar;//1Bytes
-		// 增益、帧序号
-		HAL_UART_Transmit_IT(&huart2,data_frame_upload,sizeof(data_frame_upload));
+//		memcpy(&data_frame_upload[2],adc_frame,sizeof(adc_frame));	//adc 4*2 = 8Bytes
+//		memcpy(&data_frame_upload[10],sdadc_frame,sizeof(sdadc_frame));//sdadc 8*2 = 16Bytes
+//		memcpy(&data_frame_upload[26],autoadj,sizeof(autoadj));//autoadj 8*1 = 8Bytes
+//		memcpy(&data_frame_upload[34],&data_frame_master,sizeof(data_frame_master));//2Bytes
+//		memcpy(&data_frame_upload[36],&data_frame_pos,sizeof(data_frame_pos));//2Bytes
+//		data_frame_upload[38]=index_lidar;//1Bytes
+//		// 增益、帧序号
+//		HAL_UART_Transmit_IT(&huart2,data_frame_upload,sizeof(data_frame_upload));
 }
 
 void debugModeSet(){
@@ -358,12 +385,40 @@ void debugModeSet(){
 		HAL_Delay(uartCtrl.fashionTime + 20);
 		while(uartCtrl.flagMask & DebugMode) {
 			// 仅调整舵机位置，和激光器工作状态，工作时序通过定时器完成
-			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,uartCtrl.flagMask & Lidar1);
-			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,uartCtrl.flagMask & Lidar1);			
-			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,uartCtrl.flagMask & Lidar2);
-			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,uartCtrl.flagMask & Lidar2);			
-			HAL_GPIO_WritePin(GPIOA,E3_Pin | W3_Pin,uartCtrl.flagMask & Lidar3);
-			HAL_GPIO_WritePin(GPIOC,S3_Pin | N3_Pin,uartCtrl.flagMask & Lidar3);
+			if(uartCtrl.flagMask & CHE){
+				HAL_GPIO_WritePin(GPIOA,E1_Pin,uartCtrl.flagMask & Lidar1);
+				HAL_GPIO_WritePin(GPIOA,E2_Pin,uartCtrl.flagMask & Lidar2);
+				HAL_GPIO_WritePin(GPIOA,E3_Pin,uartCtrl.flagMask & Lidar3);
+			}else{
+				HAL_GPIO_WritePin(GPIOA,E1_Pin | E2_Pin | E3_Pin,0);
+			}			
+			if(uartCtrl.flagMask & CHW){
+				HAL_GPIO_WritePin(GPIOA,W1_Pin,uartCtrl.flagMask & Lidar1);
+				HAL_GPIO_WritePin(GPIOA,W2_Pin,uartCtrl.flagMask & Lidar2);
+				HAL_GPIO_WritePin(GPIOA,W3_Pin,uartCtrl.flagMask & Lidar3);
+			}else{
+				HAL_GPIO_WritePin(GPIOA,W1_Pin | W2_Pin | W3_Pin,0);
+			}			
+			if(uartCtrl.flagMask & CHS){
+				HAL_GPIO_WritePin(GPIOC,S1_Pin,uartCtrl.flagMask & Lidar1);
+				HAL_GPIO_WritePin(GPIOC,S2_Pin,uartCtrl.flagMask & Lidar2);
+				HAL_GPIO_WritePin(GPIOC,S3_Pin,uartCtrl.flagMask & Lidar3);
+			}else{
+				HAL_GPIO_WritePin(GPIOC,S1_Pin | S2_Pin | S3_Pin,0);
+			}			
+			if(uartCtrl.flagMask & CHN){
+				HAL_GPIO_WritePin(GPIOC,N1_Pin,uartCtrl.flagMask & Lidar1);
+				HAL_GPIO_WritePin(GPIOC,N2_Pin,uartCtrl.flagMask & Lidar2);
+				HAL_GPIO_WritePin(GPIOC,N3_Pin,uartCtrl.flagMask & Lidar3);
+			}else{
+				HAL_GPIO_WritePin(GPIOC,N1_Pin | N2_Pin | N3_Pin,0);
+			}
+//			HAL_GPIO_WritePin(GPIOA,E1_Pin | W1_Pin,uartCtrl.flagMask & Lidar1);
+//			HAL_GPIO_WritePin(GPIOC,S1_Pin | N1_Pin,uartCtrl.flagMask & Lidar1);			
+//			HAL_GPIO_WritePin(GPIOA,E2_Pin | W2_Pin,uartCtrl.flagMask & Lidar2);
+//			HAL_GPIO_WritePin(GPIOC,S2_Pin | N2_Pin,uartCtrl.flagMask & Lidar2);			
+//			HAL_GPIO_WritePin(GPIOA,E3_Pin | W3_Pin,uartCtrl.flagMask & Lidar3);
+//			HAL_GPIO_WritePin(GPIOC,S3_Pin | N3_Pin,uartCtrl.flagMask & Lidar3);
 			if(flag_fashion == Lock){
 				fashion_sync_set_angle(uartCtrl.posSet, uartCtrl.fashionTime);
 			}
@@ -542,7 +597,7 @@ float V_ad_1[4] = {0};
 float A_origin[4] = {0};
 float A_thresh = 10;
 float V_ref = 3300;
-float V_max = 150;
+float V_max = 200;
 float V_min = 50;
 float V_target = 100;
 float R_target = 0;
@@ -550,8 +605,43 @@ uint8_t autoadj_target = 0;
 uint8_t Adj_flag = 0;
 uint16_t Arr_label[4] = {0, 1, 2 ,5};
 void autoGainAdj(void){
+//	uint8_t i = 0;
+//	for (i=0;i<4;i++){
+//		// 1. 由SDADC的值转换为第一级放大电压V1
+//		V_ad_1[i] = (sdadc_frame[Arr_label[i]] + 32767) * V_ref / 65535; //i, Arr_label[i]
+//		A_origin[i] = 1000 * V_ad_1[i] / ((256 - autoadj[i]) * 3.92); //i,i,2i+1, 电流单位是nA
+
+//		// 2. 判断是否需要调节
+//		if (V_ad_1[i] > V_max) {
+//		    Adj_flag = 1;      // 过压：减小增益
+//		}
+//		else if (V_ad_1[i] <= V_min && A_origin[i] >= A_thresh) {
+//		    Adj_flag = 1;      // 欠压且电流仍大：增大增益
+//		}
+
+//		// 3. 若需调节则计算新阻值和目标档位
+//		if (Adj_flag) {
+//		    R_target = 1e6f * V_target / A_origin[i];       // Ω
+//		    autoadj_target = (uint8_t)(256 - (R_target / 3920.0f));
+
+//		    // 限幅处理
+//		    if (autoadj_target > 255) {
+//		    	autoadj_target = 255;
+//		    }
+//		    if (autoadj_target < 1) {
+//		    	autoadj_target = 1;   // 防止0档过小
+//		    }
+
+//		    // 更新增益
+//		    autoadj[i] = autoadj_target;
+//				uint8_t iicdata[2] = {0};
+//				iicdata[1] = autoadj_target;
+//				HAL_I2C_Master_Transmit_DMA(&hi2c1, adjaddr[i], iicdata, 2);
+//		}
+
+//		Adj_flag = 0;
+//	}
 	uint8_t i = 0;
-	for (i=0;i<4;i++){
 		// 1. 由SDADC的值转换为第一级放大电压V1
 		V_ad_1[i] = (sdadc_frame[Arr_label[i]] + 32767) * V_ref / 65535; //i, Arr_label[i]
 		A_origin[i] = 1000 * V_ad_1[i] / ((256 - autoadj[i]) * 3.92); //i,i,2i+1, 电流单位是nA
@@ -585,7 +675,6 @@ void autoGainAdj(void){
 		}
 
 		Adj_flag = 0;
-	}
 
 }
 
