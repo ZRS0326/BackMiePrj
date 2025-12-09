@@ -43,12 +43,12 @@ typedef struct {
 	uint16_t flagMask;					//模式控制掩码、激光器状态 [0x00 0x[lidar][workmask] ]
 	int16_t posLow;					//---/测量位置下限/测量位置下限(角度100.0->1000)
 	int16_t posHigh;					//---/测量位置上限/测量位置上限(角度100.0->1000)
-	int16_t posDiv;					//---/测量分辨率/---(角度100.0->1000)
 	int16_t posSet;					//测量点/---/---(角度100.0->1000)
 	uint16_t adjTime;						//ADC的增益控制周期
 	uint16_t uartUploadTime;		//串口数据上传周期(采样率)
 	uint16_t fashionTime;				//舵机单角度运行周期(a)
 	uint16_t lidarTime;					//激光器启动延时(b)
+	uint16_t delayTime;					//若干场景的延时设定(c)
 }ControlParams;
 /* USER CODE END ET */
 
@@ -63,10 +63,10 @@ typedef struct {
 #define Lidar1 0x10 				//激光器1
 #define Lidar2 0x20					//激光器2
 #define Lidar3 0x40					//激光器3
-#define CHE 0x0100 					//方向E
-#define CHS 0x0200 					//方向S
-#define CHW 0x0400 					//方向W
-#define CHN 0x0800 					//方向N
+#define CHE 0x0100 					//方向E(1)
+#define CHS 0x0200 					//方向S(2)
+#define CHN 0x0400 					//方向N(3)
+#define CHW 0x0800 					//方向W(4)
 #define Release 0x00					//锁释放/完成标志
 #define Lock 0x01					//锁执行/非完成标志
 extern uint8_t ReceiveBuff1[BUFFERSIZE]; 						//接收缓冲区
@@ -115,6 +115,7 @@ void dataUpload(void);
 void modeInit(void);
 void fashion_process_response(uint8_t length);
 void autoGainAdj(void);
+void setLidarPin(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -160,12 +161,12 @@ void autoGainAdj(void);
 #define N2_GPIO_Port GPIOC
 #define N3_Pin GPIO_PIN_9
 #define N3_GPIO_Port GPIOC
-#define W1_Pin GPIO_PIN_9
-#define W1_GPIO_Port GPIOA
+#define W3_Pin GPIO_PIN_9
+#define W3_GPIO_Port GPIOA
 #define W2_Pin GPIO_PIN_10
 #define W2_GPIO_Port GPIOA
-#define W3_Pin GPIO_PIN_11
-#define W3_GPIO_Port GPIOA
+#define W1_Pin GPIO_PIN_11
+#define W1_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 

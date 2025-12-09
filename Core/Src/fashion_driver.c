@@ -197,16 +197,36 @@ void fashion_sync_set_angle(int16_t angle, uint16_t time_ms)
     packet[0] = FASHION_FRAME_HEADER_REQ_1;  // 帧头1 (0x12)
     packet[1] = FASHION_FRAME_HEADER_REQ_2;  // 帧头2 (0x4C)
     packet[2] = FASHION_CMD_SYNC;           // 指令码 (0x19 - 同步指令)
-    packet[3] = FASHION_SYNC_SETANGLE_LENGTH; // 内容长度 = 命令(3) + 舵机数(4) * 子命令（7）
     packet[4] = FASHION_CMD_SINGLE_ANGLE;   // 子命令：单圈角度控制 (0x08)
     packet[5] = 0x07;   //子命令长度
-    packet[6] = 0x04;   //舵机数量
-
-    // 每个舵机的目标角度（小端序，16位）
-    for (uint8_t i = 0; i < 4; ++i)
+    
+    // 根据flagMask确定需要控制的舵机
+    uint8_t servo_ids[4];
+    uint8_t servo_count = 0;
+    
+    if (uartCtrl.flagMask & CHN) {
+        servo_ids[servo_count++] = 0;  // E方向舵机ID 0  0000
+    }
+    if (uartCtrl.flagMask & CHE) {
+        servo_ids[servo_count++] = 1;  // S方向舵机ID 1  0001
+    }
+    if (uartCtrl.flagMask & CHS) {
+        servo_ids[servo_count++] = 2;  // W方向舵机ID 2  0010
+    }
+    if (uartCtrl.flagMask & CHW) {
+        servo_ids[servo_count++] = 3;  // N方向舵机ID 3(ok)0100
+    }
+    
+    packet[6] = servo_count;   // 舵机数量
+    
+    // 计算内容长度
+    packet[3] = 0x03 + servo_count * 0x07;  // 命令(3) + 舵机数 * 子命令（7）
+    
+    // 为每个需要控制的舵机设置目标角度
+    for (uint8_t i = 0; i < servo_count; ++i)
     {
-        // 舵机ID（小端序，16位）
-        packet[7+i*7] = i;
+        // 舵机ID
+        packet[7+i*7] = servo_ids[i];
         // 角度值（小端序，16位）
         packet[8+i*7] = (uint8_t)(angle & 0xFF);      // 低字节
         packet[9+i*7] = (uint8_t)((angle >> 8) & 0xFF); // 高字节
@@ -218,30 +238,53 @@ void fashion_sync_set_angle(int16_t angle, uint16_t time_ms)
         packet[13+i*7] = 0x00;                         // 功率
     }
     
-    // 计算校验和（帧头到内容部分，共18个字节）
-    packet[35] = fashion_calculate_checksum(packet, 35);
+    // 计算校验和
+    uint8_t total_length = 7 + servo_count * 7;  // 帧头(3) + 内容长度(1) + 子命令(2) + 舵机数(1) + 每个舵机7字节
+    packet[total_length] = fashion_calculate_checksum(packet, total_length);
     
-    // 使用DMA发送数据（总共19个字节）
-    HAL_UART_Transmit_DMA(&huart1, packet, 36);
+    // 使用DMA发送数据
+    HAL_UART_Transmit_DMA(&huart1, packet, total_length + 1);
 }
 
 void fashion_sync_data_monitor(){
-    // 构建同步单圈角度设置指令数据包
+    // 构建同步数据监控指令数据包
     packet[0] = FASHION_FRAME_HEADER_REQ_1;  // 帧头1 (0x12)
     packet[1] = FASHION_FRAME_HEADER_REQ_2;  // 帧头2 (0x4C)
     packet[2] = FASHION_CMD_SYNC;           // 指令码 (0x19 - 同步指令)
-    packet[3] = FASHION_SYNC_MONITOR_LENGTH; // 内容长度 = 命令(3) + 舵机数(4)
     packet[4] = FASHION_CMD_DATA_MONITOR;
     packet[5] = 0x01;   //子命令长度
-    packet[6] = 0x04;   //舵机数量    
-		packet[7] = 0x00;   //ID0
-		packet[8] = 0x01;   //ID1   
-		packet[9] = 0x02;   //ID2
-		packet[10] = 0x03;   //ID3
-
-    // 计算校验和（帧头到内容部分，共18个字节）
-    packet[11] = fashion_calculate_checksum(packet, 11);
     
-    // 使用DMA发送数据（总共19个字节）
-    HAL_UART_Transmit_DMA(&huart1, packet, 12);
+    // 根据flagMask确定需要监控的舵机
+    uint8_t servo_ids[4];
+    uint8_t servo_count = 0;
+    
+    if (uartCtrl.flagMask & CHN) {
+        servo_ids[servo_count++] = 0;  // E方向舵机ID 0  1000
+    }
+    if (uartCtrl.flagMask & CHE) {
+        servo_ids[servo_count++] = 1;  // S方向舵机ID 1  0001
+    }
+    if (uartCtrl.flagMask & CHS) {
+        servo_ids[servo_count++] = 2;  // W方向舵机ID 2  0010
+    }
+    if (uartCtrl.flagMask & CHW) {
+        servo_ids[servo_count++] = 3;  // N方向舵机ID 3(ok)0100
+    }
+    
+    packet[6] = servo_count;   // 舵机数量
+    
+    // 计算内容长度
+    packet[3] = 0x03 + servo_count;  // 命令(3) + 舵机数
+    
+    // 设置每个需要监控的舵机ID
+    for (uint8_t i = 0; i < servo_count; ++i) {
+        packet[7 + i] = servo_ids[i];
+    }
+
+    // 计算校验和
+    uint8_t total_length = 7 + servo_count;  // 帧头(3) + 内容长度(1) + 子命令(2) + 舵机数(1) + 每个舵机1字节
+    packet[total_length] = fashion_calculate_checksum(packet, total_length);
+    
+    // 使用DMA发送数据
+    HAL_UART_Transmit_DMA(&huart1, packet, total_length + 1);
 }
