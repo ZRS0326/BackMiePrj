@@ -111,6 +111,7 @@ void setCtrlParams(void);
 void debugModeSet(void);
 void cModeSet(void);
 void dModeSet(void);
+void fModeSet(void);
 void dataUpload(void);
 void modeInit(void);
 void fashion_process_response(uint8_t length);
